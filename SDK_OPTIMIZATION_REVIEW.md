@@ -140,15 +140,15 @@ docs/
 README 中可以这样引用：
 
 ```md
-![Gogobot EDU Robot](docs/assets/images/aidog_hero.jpg)
+![Gogobot EDU Robot](docs/assets/images/gogo-readme.jpg)
 
 ## Demo
 
 | Demo | Example | Preview |
 |------|---------|---------|
-| Quick start actions | `examples/02_actions/basic_actions.py` | ![](docs/assets/demos/quick_start_actions.gif) |
-| Movement control | `examples/03_movement/directional_move.py` | ![](docs/assets/demos/movement_demo.gif) |
-| IMU / TOF stream | `examples/04_sensors/imu_read.py` | ![](docs/assets/demos/imu_tof_stream.gif) |
+| Quick start actions | `examples/02_actions/basic_actions.py` | See `docs/assets/demos/README.md` |
+| Movement control | `examples/03_movement/directional_move.py` | See `docs/assets/demos/README.md` |
+| IMU / TOF stream | `examples/04_sensors/imu_read.py` | See `docs/assets/demos/README.md` |
 ```
 
 建议 demo 清单：
@@ -404,7 +404,7 @@ English | [中文](README.zh_CN.md)
 
 Python SDK for Gogobot EDU / Changba AI-Dog.
 
-![Gogobot EDU Robot](docs/assets/images/aidog_hero.jpg)
+![Gogobot EDU Robot](docs/assets/images/gogo-readme.jpg)
 
 ## Highlights
 - BLE robot control
@@ -425,9 +425,9 @@ Python SDK for Gogobot EDU / Changba AI-Dog.
 ## Demo
 | Demo | Example | Preview |
 |------|---------|---------|
-| Quick start actions | `examples/02_actions/basic_actions.py` | ![](docs/assets/demos/quick_start_actions.gif) |
-| Movement control | `examples/03_movement/directional_move.py` | ![](docs/assets/demos/movement_demo.gif) |
-| IMU / TOF stream | `examples/04_sensors/imu_read.py` | ![](docs/assets/demos/imu_tof_stream.gif) |
+| Quick start actions | `examples/02_actions/basic_actions.py` | See `docs/assets/demos/README.md` |
+| Movement control | `examples/03_movement/directional_move.py` | See `docs/assets/demos/README.md` |
+| IMU / TOF stream | `examples/04_sensors/imu_read.py` | See `docs/assets/demos/README.md` |
 
 ## Examples
 ...
@@ -453,7 +453,7 @@ Python SDK for Gogobot EDU / Changba AI-Dog.
 
 Gogobot EDU / 唱吧 AI-Dog 的 Python 编程 SDK。
 
-![Gogobot EDU 机器狗](docs/assets/images/aidog_hero.jpg)
+![Gogobot EDU 机器狗](docs/assets/images/gogo-readme.jpg)
 
 ## 核心能力
 ...
@@ -470,9 +470,9 @@ Gogobot EDU / 唱吧 AI-Dog 的 Python 编程 SDK。
 ## Demo 演示
 | 演示 | 示例 | 预览 |
 |------|------|------|
-| 快速动作 | `examples/02_actions/basic_actions.py` | ![](docs/assets/demos/quick_start_actions.gif) |
-| 方向运动 | `examples/03_movement/directional_move.py` | ![](docs/assets/demos/movement_demo.gif) |
-| IMU / TOF 数据流 | `examples/04_sensors/imu_read.py` | ![](docs/assets/demos/imu_tof_stream.gif) |
+| 快速动作 | `examples/02_actions/basic_actions.py` | See `docs/assets/demos/README.md` |
+| 方向运动 | `examples/03_movement/directional_move.py` | See `docs/assets/demos/README.md` |
+| IMU / TOF 数据流 | `examples/04_sensors/imu_read.py` | See `docs/assets/demos/README.md` |
 
 ## 示例
 ...

@@ -74,6 +74,7 @@ with AiDog() as dog:
     dog.send_ear(EarAction.EAR_STAND_LEFT)
     dog.send_expression(ExpressionAction.HAPPY_01)
     dog.send_audio(Tone.JEEZ)
+    dog.set_volume(3, verify_tone=Tone.BEAT1)
 ```
 
 More setup details: [Quick Start](docs/quick_start.en.md).
@@ -103,6 +104,7 @@ Use `logging.DEBUG` when troubleshooting BLE discovery and notification setup.
 | `examples/04_sensors/tof_read.py` | Subscribe to TOF JSON on `ae04` | Low |
 | `examples/04_sensors/sensor_ws_lan.py` | IMU/TOF over LAN via Dev PC WebSocket | Low |
 | `examples/05_audio/bidirectional_pcm_ws_host.py` | Bidirectional PCM WebSocket host | Low |
+| `examples/05_audio/set_volume.py` | Set speaker volume over BLE | Low |
 | `examples/06_robot_adjust/safe_pose_adjust.py` | Smooth pose / foot / joint adjustment | High |
 
 Full example index: [Examples](examples/README.md).

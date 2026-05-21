@@ -41,6 +41,7 @@ MODE_SENSOR = 0x08
 MODE_STREAM = 0x09
 # Smooth body/foot/joint adjustment (firmware `remote_control.c` mode=0x0A; aligned with `robot_adjust.c`)
 MODE_ROBOT_ADJUST = 0x0A
+CONFIG_SET_VOLUME = 1
 _SPECIAL_DETECTION_TOGGLE = 15
 _SPECIAL_DETECTION_ENABLE = 100
 _SPECIAL_DETECTION_DISABLE = 101
@@ -598,6 +599,27 @@ class AiDog:
     def send_audio(self, tone_id: Union[int, Tone]) -> None:
         """Send audio control ID (0=stop, >0=play)."""
         self._ble.send_data(MODE_AUDIO, [int(tone_id) & 0xFF])
+
+    def set_volume(
+        self,
+        volume: int,
+        *,
+        verify_tone: Optional[Union[int, Tone]] = None,
+        verify_delay_s: float = 0.2,
+    ) -> None:
+        """
+        Set robot volume through the firmware config channel.
+
+        Current firmware uses 5 levels: 0=mute, 4=max. When ``verify_tone`` is
+        provided, the SDK plays that tone after the setting is sent.
+        """
+        level = max(0, min(4, int(volume)))
+        self._ble.send_config_json({"cmd": CONFIG_SET_VOLUME, "volume": level})
+        if verify_tone is not None:
+            delay = max(0.0, float(verify_delay_s))
+            if delay:
+                time.sleep(delay)
+            self.send_audio(verify_tone)
 
     # ------------------------------------------------------------------
     # Extended low-level APIs (microphone / speaker / servo / IMU)

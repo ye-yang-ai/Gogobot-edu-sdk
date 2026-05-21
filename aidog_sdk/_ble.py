@@ -10,7 +10,7 @@ import json
 import logging
 import threading
 import time
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, List, Mapping, Optional, Tuple
 
 from bleak import BleakClient, BleakScanner
 
@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 _UUID_NOTIFY  = "ae02"   # ae02 → subscribe for device→host notifications
 _UUID_NOTIFY_IMU = "ae04"  # ae04 → 传感器流（IMU/TOF JSON）
 _UUID_WRITE = "ae03"     # ae03 → write commands (binary packet)
+_UUID_CONFIG = "ae01"    # ae01 config JSON
 _UUID_ACTIONS = "0000ae10-0000-1000-8000-00805f9b34fb"  # read action list
 
 _HEADER = 0xAA55
@@ -54,6 +55,7 @@ class BleTransport:
         self._thread.start()
 
         self._client: Optional[BleakClient] = None
+        self._config_uuid: Optional[str] = None
         self._write_uuid: Optional[str] = None
         self._notify_uuids: List[str] = []
         self._on_notify = on_notify  # optional raw-bytes callback
@@ -145,6 +147,7 @@ class BleTransport:
             except Exception:
                 pass
         self._client = None
+        self._config_uuid = None
         self._write_uuid = None
         self._notify_uuids = []
 
@@ -173,6 +176,8 @@ class BleTransport:
                         self._notify_uuids.append(char.uuid)
                     except Exception:
                         pass
+                if _UUID_CONFIG in u and ("write" in props or "write-without-response" in props):
+                    self._config_uuid = char.uuid
                 if _UUID_WRITE in u and ("write" in props or "write-without-response" in props):
                     self._write_uuid = char.uuid
 
@@ -205,6 +210,7 @@ class BleTransport:
             except Exception:
                 pass
             self._client = None
+            self._config_uuid = None
             self._write_uuid = None
 
     # ------------------------------------------------------------------
@@ -247,6 +253,37 @@ class BleTransport:
     async def _write_raw_async(self, payload: bytes) -> None:
         assert self._client and self._write_uuid
         await self._client.write_gatt_char(self._write_uuid, payload, response=False)
+
+    def send_config_json(
+        self,
+        payload: Mapping[str, object],
+        *,
+        retries: int = _DEFAULT_WRITE_RETRIES,
+        retry_delay_s: float = _DEFAULT_WRITE_RETRY_DELAY,
+    ) -> None:
+        """Send config JSON to ae01."""
+        if not self._client or not self._client.is_connected:
+            raise ConnectionError("Not connected to a device.")
+        if not self._config_uuid:
+            raise RuntimeError("Config characteristic (ae01) not found on this device.")
+
+        data = json.dumps(payload, separators=(",", ":")).encode("utf-8") + b"\0"
+        attempts = max(1, int(retries))
+        last_exc: Optional[Exception] = None
+        for i in range(attempts):
+            try:
+                self._run(self._write_config_async(data), timeout=_WRITE_TIMEOUT)
+                return
+            except Exception as e:
+                last_exc = e
+                if i < attempts - 1:
+                    time.sleep(max(0.0, retry_delay_s))
+        if last_exc:
+            raise last_exc
+
+    async def _write_config_async(self, payload: bytes) -> None:
+        assert self._client and self._config_uuid
+        await self._client.write_gatt_char(self._config_uuid, payload, response=False)
 
     def read_actions(self) -> dict:
         """

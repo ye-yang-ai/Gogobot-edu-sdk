@@ -27,10 +27,24 @@ SDK write packet:
 
 | Characteristic | Direction | Purpose |
 |---|---|---|
+| `ae01` | Host to robot | Write config JSON, such as volume settings |
 | `ae03` | Host to robot | Write control packets |
 | `ae02` | Robot to host | Status notifications |
 | `ae04` | Robot to host | Sensor stream notifications, typically IMU / TOF JSON |
 | `ae10` | Host reads robot | Optional action definition JSON |
+
+## Config JSON
+
+Config writes use the `ae01` characteristic and send a compact UTF-8 JSON object
+terminated by `\0`.
+
+Set speaker volume:
+
+```json
+{"cmd":1,"volume":3}
+```
+
+`volume` is clamped by the SDK and firmware to `0-4`.
 
 ## Notify JSON
 

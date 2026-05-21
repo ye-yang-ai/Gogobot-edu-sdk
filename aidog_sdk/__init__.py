@@ -27,6 +27,7 @@ from .dog import (
     MODE_SPORT,
     MODE_STREAM,
     MODE_ROBOT_ADJUST,
+    CONFIG_SET_VOLUME,
 )
 from .actions import (
     ACTION_ALIASES,
@@ -55,6 +56,7 @@ __all__ = [
     "MODE_SENSOR",
     "MODE_STREAM",
     "MODE_ROBOT_ADJUST",
+    "CONFIG_SET_VOLUME",
     "Action",
     "EarAction",
     "ExpressionAction",

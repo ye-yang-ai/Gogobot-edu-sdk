@@ -7,6 +7,7 @@ SDK behavior depends on firmware support. Keep this file updated whenever firmwa
 | Feature | Required Firmware Support | SDK Surface |
 |---|---|---|
 | BLE command write | `ae03` write characteristic | `send_raw`, all control APIs |
+| BLE config write | `ae01` write characteristic, config JSON parser | `set_volume()` |
 | Device status notify | `ae02` notify / indicate | action completion state |
 | IMU / TOF sensor stream | `ae04` notify / indicate JSON | `request_imu_stream`, `request_tof_stream` |
 | Action definition read | `ae10` read characteristic | `get_action_list()` |
@@ -18,6 +19,7 @@ SDK behavior depends on firmware support. Keep this file updated whenever firmwa
 
 - Some older firmware builds may not report `interaction_task_status`; `perform_action()` completion waiting is less reliable without it.
 - Some builds tie IMU/TOF reporting to notification routing; the SDK subscribes to both `ae02` and `ae04` by default.
+- `set_volume()` requires the firmware config parser to accept `{"cmd":1,"volume":0-4}` on `ae01`.
 - `ae10` action list reading is optional and may not exist on all firmware versions.
 - WebSocket sensor mirror and bidirectional audio require firmware configuration and LAN reachability.
 

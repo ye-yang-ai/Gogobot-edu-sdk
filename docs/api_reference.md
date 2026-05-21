@@ -35,6 +35,7 @@ This page summarizes the public APIs exported from `aidog_sdk`.
 | `toggle_special_detection()` | Legacy toggle command |
 | `send_expression(expression_id)` | Face expression |
 | `send_audio(tone_id)` | Tone or audio control |
+| `set_volume(volume, verify_tone=None)` | Set speaker volume level `0-4` over BLE config |
 
 ## Sensors
 

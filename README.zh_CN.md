@@ -74,6 +74,7 @@ with AiDog() as dog:
     dog.send_ear(EarAction.EAR_STAND_LEFT)
     dog.send_expression(ExpressionAction.HAPPY_01)
     dog.send_audio(Tone.JEEZ)
+    dog.set_volume(3, verify_tone=Tone.BEAT1)
 ```
 
 详细说明见：[快速开始](docs/quick_start.zh_CN.md)。
@@ -103,6 +104,7 @@ logging.basicConfig(level=logging.INFO)
 | `examples/04_sensors/tof_read.py` | 订阅 `ae04` TOF JSON | 低 |
 | `examples/04_sensors/sensor_ws_lan.py` | 局域网 WebSocket 接收 IMU/TOF | 低 |
 | `examples/05_audio/bidirectional_pcm_ws_host.py` | 双向 PCM WebSocket 上位机 | 低 |
+| `examples/05_audio/set_volume.py` | 通过 BLE 设置扬声器音量 | 低 |
 | `examples/06_robot_adjust/safe_pose_adjust.py` | 机身 / 足端 / 关节平滑调节 | 高 |
 
 完整示例索引见：[示例说明](examples/README.md)。
