@@ -14,9 +14,28 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest"]
+dev = [
+    "pytest",
+    "pytest-mock",
+    "ruff",
+    "mypy",
+    "build",
+    "twine",
+]
 bidir_audio = ["websockets", "sounddevice", "numpy"]
 dev_pc_ws = ["websockets"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+
+[tool.mypy]
+python_version = "3.9"
+warn_unused_ignores = true
+warn_return_any = true
 
 [tool.setuptools.packages.find]
 where = ["."]

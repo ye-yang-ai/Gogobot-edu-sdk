@@ -2,7 +2,7 @@
 
 [English](README.md) | 中文
 
-![Gogobot EDU Logo](docs/assets/images/logo-text.png)
+<img src="docs/assets/images/logo-text.png" alt="Gogobot EDU Logo" width="260">
 
 **Changba AI-Dog / Gogobot EDU** 机器狗 Python 编程 SDK。它面向教育、课程平台、实验室和开发者，提供蓝牙连接、动作控制、动作编排、传感器读取、局域网 WebSocket、音频链路和高级姿态调节等能力。
 
@@ -41,6 +41,22 @@ pip install -e ".[dev_pc_ws]"
 pip install -e ".[bidir_audio]"
 ```
 
+开发工具依赖：
+
+```bash
+pip install -e ".[dev]"
+```
+
+常用检查命令：
+
+```bash
+pytest
+ruff check .
+mypy aidog_sdk
+python -m build
+twine check dist/*
+```
+
 ## 快速开始
 
 ```python
@@ -61,28 +77,6 @@ with AiDog() as dog:
 ```
 
 详细说明见：[快速开始](docs/quick_start.zh_CN.md)。
-
-## 图片和 Demo 视频
-
-真实机器狗图片和 demo 视频建议统一放在 `docs/assets/` 下。SDK 文档需要让用户看到真实设备和代码运行效果，而不是只有 API 表。
-
-### 图片预览
-
-| 机器狗 | 文字 Logo | 图标 Logo |
-|---|---|---|
-| ![Gogobot EDU 机器狗](docs/assets/images/gogo-readme.jpg) | ![Gogobot EDU 文字 Logo](docs/assets/images/logo-text.png) | ![Gogobot EDU 图标 Logo](docs/assets/images/logo2.png) |
-
-| 素材 | 用途 | 路径 |
-|---|---|---|
-| 机器狗整体图原图 | 高清源图 | `docs/assets/images/gogo.png` |
-| 机器狗整体图 README 版 | 轻量预览图 | `docs/assets/images/gogo-readme.jpg` |
-| 文字 Logo | README 品牌头图 | `docs/assets/images/logo-text.png` |
-| 图标 Logo | 文档、包和课程平台标识 | `docs/assets/images/logo2.png` |
-| 快速动作 demo | 坐下、握手、表情、音效 | `docs/assets/demos/quick_start_actions.*` |
-| 方向运动 demo | 前进、后退、左转、右转、停止 | `docs/assets/demos/movement_demo.*` |
-| 传感器 demo | IMU / TOF 终端数据流和机器狗状态 | `docs/assets/demos/imu_tof_stream.*` |
-
-视频建议：短 GIF/WebP 可以放仓库；较大的 MP4 建议放 Release assets、官网 CDN 或视频平台，再从 README 和文档链接过去。
 
 ## 示例
 
@@ -110,7 +104,6 @@ with AiDog() as dog:
 - [固件兼容说明](docs/firmware_compatibility.md)
 - [安全说明](docs/safety.md)
 - [故障排查](docs/troubleshooting.md)
-- [Demo 素材说明](docs/assets/demos/README.md)
 
 ## 项目结构
 

@@ -2,7 +2,7 @@
 
 [English](README.md) | [中文](README.zh_CN.md)
 
-![Gogobot EDU logo](docs/assets/images/logo-text.png)
+<img src="docs/assets/images/logo-text.png" alt="Gogobot EDU logo" width="260">
 
 Python SDK for the **Changba AI-Dog / Gogobot EDU** quadruped robot. It provides a simple synchronous API for classroom programming, BLE robot control, action choreography, sensor streaming, and optional Dev PC WebSocket audio/sensor workflows.
 
@@ -41,6 +41,22 @@ pip install -e ".[dev_pc_ws]"
 pip install -e ".[bidir_audio]"
 ```
 
+Development tools:
+
+```bash
+pip install -e ".[dev]"
+```
+
+Common checks:
+
+```bash
+pytest
+ruff check .
+mypy aidog_sdk
+python -m build
+twine check dist/*
+```
+
 ## Quick Start
 
 ```python
@@ -61,28 +77,6 @@ with AiDog() as dog:
 ```
 
 More setup details: [Quick Start](docs/quick_start.en.md).
-
-## Demo Materials
-
-Real robot images and demo videos should be kept under `docs/assets/` so the SDK landing page shows the actual device behavior, not only API text.
-
-### Image Preview
-
-| Robot | Text Logo | Icon Logo |
-|---|---|---|
-| ![Gogobot EDU robot](docs/assets/images/gogo-readme.jpg) | ![Gogobot EDU text logo](docs/assets/images/logo-text.png) | ![Gogobot EDU icon logo](docs/assets/images/logo2.png) |
-
-| Material | Purpose | Path |
-|---|---|---|
-| Product photo, original | High-resolution source image | `docs/assets/images/gogo.png` |
-| Product photo, README | Lightweight README preview | `docs/assets/images/gogo-readme.jpg` |
-| Text logo | README brand header | `docs/assets/images/logo-text.png` |
-| Icon logo | Docs and package branding | `docs/assets/images/logo2.png` |
-| Action demo | Sit, shake hand, expression, sound | `docs/assets/demos/quick_start_actions.*` |
-| Movement demo | Forward, back, left, right, stop | `docs/assets/demos/movement_demo.*` |
-| Sensor demo | IMU / TOF terminal stream with robot motion | `docs/assets/demos/imu_tof_stream.*` |
-
-Video guidance: keep short GIF/WebP previews in the repository when possible; place large MP4 files in release assets, an official CDN, or a video platform and link them from the docs.
 
 ## Examples
 
@@ -110,7 +104,6 @@ Full example index: [Examples](examples/README.md).
 - [Firmware Compatibility](docs/firmware_compatibility.md)
 - [Safety Guide](docs/safety.md)
 - [Troubleshooting](docs/troubleshooting.md)
-- [Demo Asset Guide](docs/assets/demos/README.md)
 
 ## Project Layout
 
