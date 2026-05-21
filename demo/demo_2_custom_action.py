@@ -1,8 +1,18 @@
-"""
-Foot-end control example that reproduces the firmware sniff motion
-using MODE_ROBOT_ADJUST.
-Flow: shift weight backward -> lift front legs with X fine-tuning
--> hold -> reverse to recover.
+"""Run a custom sniff-like robot-adjustment action.
+
+Purpose:
+    Demonstrate a firmware-like sniff motion built from foot adjustments,
+    expression, and audio.
+Risk level:
+    High. This script changes foot targets and requires matching firmware.
+Dependencies:
+    pip install -e .
+Run:
+    python demo/demo_2_custom_action.py
+Expected result:
+    The robot moves forward, performs the sniff-like motion, and returns to basic mode.
+Exit:
+    Wait for completion, or press Ctrl+C.
 """
 
 from __future__ import annotations
@@ -13,14 +23,14 @@ from aidog_sdk import AiDog, ExpressionAction, Movement, Tone
 
 
 def run_sniff_motion(dog: AiDog) -> None:
-    # Start from BASIC_MODE for a consistent initial posture.
+    # Start from basic mode for a consistent initial posture.
     dog.request_basic_mode()
     time.sleep(0.4)
 
     dog.default_pose_output(0.0, 0.0, 5.0, 110.0)
     time.sleep(0.4)
 
-    # 1) Shift weight backward with all four feet (same X direction).
+    # Shift weight backward with all four feet.
     dog.syn_foot_adjust(
         [
             ("foot_0_x", 35.0),  # right front
@@ -33,7 +43,7 @@ def run_sniff_motion(dog: AiDog) -> None:
     time.sleep(0.8)
 
 
-    # 2) Lift front legs and apply X-direction fine-tuning.
+    # Lift the front legs and pull them back slightly.
     dog.syn_foot_adjust(
         [
             ("foot_0_z", 60.0),   # lift right front
@@ -46,14 +56,14 @@ def run_sniff_motion(dog: AiDog) -> None:
     time.sleep(0.7)
 
 
-    # 3) Hold expression + voice effect.
+    # Hold the expression and audio effect.
     dog.send_expression(ExpressionAction.EAT_SNACK)
     dog.send_audio(Tone.EATING)
     time.sleep(8.0)
     dog.send_audio(Tone.STOP)
 
 
-    # 4) Revert front-leg lift and X fine-tuning.
+    # Restore the front-leg lift and X adjustment.
     dog.syn_foot_adjust(
         [
             ("foot_0_z", -60.0),
@@ -66,7 +76,7 @@ def run_sniff_motion(dog: AiDog) -> None:
     time.sleep(0.8)
 
 
-    # 5) Revert backward weight shift.
+    # Restore the backward weight shift.
     dog.syn_foot_adjust(
         [
             ("foot_0_x", -35.0),
@@ -84,12 +94,12 @@ def run_sniff_motion(dog: AiDog) -> None:
 
 def main() -> None:
     with AiDog() as dog:
-        # choice 1: scan and connect
+        # Scan and connect by BLE name prefix.
         dog.connect("Changba-Ai-Dog")
-        # choice 2: connect with address
-        # dog.connect(address="xx:xx:xx:xx:xx:xx")  # replace with your device address, eg: "28:3B:8A:6B:A5:42"
+        # Or connect by BLE address / platform UUID.
+        # dog.connect(address="xx:xx:xx:xx:xx:xx")
 
-        # Move forward first, then perform sniff motion.
+        # Move forward before running the custom adjustment sequence.
         dog.send_movement(Movement.FORWARD, duration_s=2.0)
         time.sleep(0.3)
         dog.stop_movement()

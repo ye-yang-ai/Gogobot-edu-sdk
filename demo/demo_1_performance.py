@@ -1,15 +1,18 @@
-"""
-Performance script: stretch -> wag tail -> forward gait + BEAT1
--> kick ball -> IMU right turn 180 deg -> forward gait + BEAT2
--> slow crouch -> COMFORT -> light tail wag finale.
+"""Run a staged robot performance routine.
 
-Flow options in this version: forward movement uses gait mode
-(`send_movement + sleep`); wag tail repeats 3 times; crouch uses slow-down;
-audio is played after crouching; with optional extra effects
-(expression/ears/lights/return beat changes).
-
-Run::
-    python examples/demo_1_performance.py
+Purpose:
+    Demonstrate a complete show sequence with actions, movement, IMU turning,
+    audio, expressions, ears, and lights.
+Risk level:
+    Medium. The robot will walk, turn, jump, crouch, and move body/legs.
+Dependencies:
+    pip install -e .
+Run:
+    python demo/demo_1_performance.py
+Expected result:
+    The robot performs the scripted routine and returns to its normal state.
+Exit:
+    Wait for completion, or press Ctrl+C. The script stops audio/movement in cleanup.
 """
 
 from __future__ import annotations
@@ -21,15 +24,12 @@ from typing import Optional
 from aidog_sdk import Action, AiDog, EarAction, ExpressionAction, Movement, Tone
 
 
-# ---------------------------------------------------------------------------
-# Configuration (edit as needed)
-# ---------------------------------------------------------------------------
+# Configuration.
 IMU_STREAM_HZ = 20
-# If 180 deg right-turn direction is interpreted opposite, set to True
-# (target heading uses start + 180 deg).
+# Set True if the yaw direction is reversed on the target robot/firmware.
 IMU_TURN_INVERT = False
 
-# Extra effects: expression/ears/lights, return beat, final tail wag
+# Enable optional expression, ear, light, return-beat, and finale effects.
 ENABLE_EXTRAS = True
 
 
@@ -67,11 +67,9 @@ def turn_right_180_with_imu(
     poll_s: float = 0.05,
     max_turn_s: float = 45.0,
 ) -> None:
-    """
-    Turn right in gait mode until IMU yaw is close to 180 deg from start
-    heading (geometrically opposite direction).
-    If ``invert_target=True``, use ``start + 180`` as target (for opposite
-    coordinate conventions).
+    """Turn right until IMU yaw is close to the opposite heading.
+
+    Set ``invert_target=True`` when the robot reports the opposite yaw convention.
     """
     start = _wait_yaw(dog, timeout_s=5.0)
     if start is None:
@@ -103,7 +101,7 @@ def forward_seconds_beat(
     *,
     stop_tone_after: bool = True,
 ) -> None:
-    """Move forward in gait mode for N seconds with tone playback."""
+    """Move forward for a fixed duration while playing a tone."""
     dog.send_audio(tone)
     time.sleep(0.05)
     dog.send_movement(Movement.FORWARD)
@@ -119,10 +117,10 @@ def forward_seconds_beat(
 def main() -> int:
     print("[Show] Connecting to robot...")
     with AiDog() as dog:
-        # choice 1: scan and connect
+        # Scan and connect by BLE name prefix.
         dog.connect("Changba-Ai-Dog")
-        # choice 2: connect with address
-        # dog.connect(address="xx:xx:xx:xx:xx:xx")  # replace with your device address, eg: "28:3B:8A:6B:A5:42"
+        # Or connect by BLE address / platform UUID.
+        # dog.connect(address="xx:xx:xx:xx:xx:xx")
 
         dog.set_special_detection(False)
 
@@ -165,7 +163,7 @@ def main() -> int:
 
         print("[Show] Slow crouch")
         slow_down_s = 20.0
-        # Send non-blocking interaction so audio can be triggered during crouch.
+        # Use non-blocking interaction so later effects can run during crouch.
         dog.send_interaction(int(Action.SLOW_DOWN_FOR_PROGRAM), int(slow_down_s))
         time.sleep(1.0)
 
@@ -173,7 +171,7 @@ def main() -> int:
             print("[Show] Sleepy expression")
             dog.send_expression(ExpressionAction.SLEEPY)
 
-        # Wait for remaining crouch time before entering next stage.
+        # Wait for the remaining crouch time before the next stage.
         time.sleep(max(0.0, slow_down_s - 1.0))
 
         print("[Show] Stretch")
