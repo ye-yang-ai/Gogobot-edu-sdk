@@ -8,6 +8,8 @@ Usage examples:
 
 2) Auto-scan by BLE device name prefix:
    python tools/set_dev_pc_ws_ip_ble.py --name-prefix Changba-Ai-Dog 192.168.11.23
+
+The tool writes a JSON configuration payload to the ae01 characteristic.
 """
 
 import argparse
