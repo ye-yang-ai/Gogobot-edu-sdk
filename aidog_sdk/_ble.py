@@ -250,6 +250,33 @@ class BleTransport:
         if last_exc:
             raise last_exc
 
+    def send_control_json(
+        self,
+        payload: Mapping[str, object],
+        *,
+        retries: int = _DEFAULT_WRITE_RETRIES,
+        retry_delay_s: float = _DEFAULT_WRITE_RETRY_DELAY,
+    ) -> None:
+        """Send remote-control JSON to ae03."""
+        if not self._client or not self._client.is_connected:
+            raise ConnectionError("Not connected to a device.")
+        if not self._write_uuid:
+            raise RuntimeError("Write characteristic (ae03) not found on this device.")
+
+        data = json.dumps(payload, separators=(",", ":")).encode("utf-8") + b"\0"
+        attempts = max(1, int(retries))
+        last_exc: Optional[Exception] = None
+        for i in range(attempts):
+            try:
+                self._run(self._write_raw_async(data), timeout=_WRITE_TIMEOUT)
+                return
+            except Exception as e:
+                last_exc = e
+                if i < attempts - 1:
+                    time.sleep(max(0.0, retry_delay_s))
+        if last_exc:
+            raise last_exc
+
     async def _write_raw_async(self, payload: bytes) -> None:
         assert self._client and self._write_uuid
         await self._client.write_gatt_char(self._write_uuid, payload, response=False)

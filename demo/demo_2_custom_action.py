@@ -86,10 +86,10 @@ def run_sniff_motion(dog: AiDog) -> None:
         ],
         duration_ms=600,
     )
-    time.sleep(0.8)
+    time.sleep(1.2)
 
     dog.request_basic_mode()
-    time.sleep(0.2)
+    time.sleep(0.4)
 
 
 def main() -> None:
@@ -100,17 +100,20 @@ def main() -> None:
         # dog.connect(address="xx:xx:xx:xx:xx:xx")
 
         # Move forward before running the custom adjustment sequence.
-        dog.send_movement(Movement.FORWARD, duration_s=2.0)
+        dog.send_movement(Movement.FORWARD, duration_s=1.5)
+        dog.send_expression(ExpressionAction.HAPPY_03)
         time.sleep(0.3)
         dog.stop_movement()
         time.sleep(0.3)
 
-        # Disable special detection during syn_* adjustments to avoid interruptions.
+        # Disable special detection and TOF avoidance during syn_* adjustments.
         dog.disable_special_detection()
-
-        run_sniff_motion(dog)
-
-        dog.enable_special_detection()
+        dog.set_tof_enable(False)
+        try:
+            run_sniff_motion(dog)
+        finally:
+            dog.set_tof_enable(True)
+            dog.enable_special_detection()
         dog.reset()
         print("sniff motion completed")
 
