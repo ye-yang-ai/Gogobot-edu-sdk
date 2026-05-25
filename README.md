@@ -116,6 +116,7 @@ Full example index: [Examples](examples/README.md).
 - [Demo Videos](docs/demo_videos.md)
 - [BLE Connection Guide](docs/connection_ble.md)
 - [API Reference](docs/api_reference.md)
+- [Action Parameter Types](docs/action_parameter_types.md)
 - [BLE Protocol Reference](docs/protocol_ble.md)
 - [Dev PC WebSocket](docs/dev_pc_websocket.md)
 - [Firmware Compatibility](docs/firmware_compatibility.md)
