@@ -86,7 +86,6 @@ Normal actions do not accept an action parameter.
 | 1 | `SLOW_UP` | Slowly stand up |
 | 2 | `SLOW_DOWN` | Slowly crouch down |
 | 3 | `SLOW_DOWN_FOR_CHARGE` | Crouch down for charging posture |
-| 6 | `EXCITED_UP_AND_DOWN` | Excited up-and-down motion |
 | 7 | `SIT_DOWN` | Sit down |
 | 9 | `STAND_UP` | Stand up from sitting posture |
 | 14 | `STRETCH` | Stretch |
@@ -108,10 +107,6 @@ Normal actions do not accept an action parameter.
 | 44 | `STOP_FLAILING` | Stop flailing |
 | 45 | `LIGHT_ON_INTERACTION` | Turn flashlight on |
 | 46 | `LIGHT_OFF_INTERACTION` | Turn flashlight off |
-| 47 | `ACTION_SEQUENCE_1` | Action sequence 1 |
-| 48 | `ACTION_SEQUENCE_2` | Action sequence 2 |
-| 49 | `ACTION_SEQUENCE_3` | Action sequence 3 |
-| 50 | `ACTION_SEQUENCE_4` | Action sequence 4 |
 | 52 | `SWING_LEFT_AND_RIGHT` | Swing left and right |
 | 53 | `SWING_LEFT` | Swing left |
 | 54 | `SWING_RIGHT` | Swing right |

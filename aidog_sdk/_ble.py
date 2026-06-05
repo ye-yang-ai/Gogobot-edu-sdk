@@ -32,6 +32,7 @@ _DEFAULT_CONNECT_RETRIES = 3
 _DEFAULT_CONNECT_RETRY_DELAY = 1.0
 _DEFAULT_WRITE_RETRIES = 2
 _DEFAULT_WRITE_RETRY_DELAY = 0.12
+_SCAN_CACHE_TTL = 30.0
 
 
 class BleTransport:
@@ -61,6 +62,7 @@ class BleTransport:
         self._on_notify = on_notify  # optional raw-bytes callback
         self._subscribe_ae02 = bool(subscribe_ae02)
         self._subscribe_ae04 = bool(subscribe_ae04)
+        self._scan_cache: dict[str, float] = {}
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -99,11 +101,15 @@ class BleTransport:
 
     async def _scan_async(self, name_prefix: str) -> List[Tuple[str, str]]:
         devices = await BleakScanner.discover(timeout=_SCAN_TIMEOUT)
-        return [
+        matches = [
             (d.name, d.address)
             for d in devices
             if d.name and d.name.startswith(name_prefix)
         ]
+        now = time.monotonic()
+        for _, address in matches:
+            self._scan_cache[address] = now
+        return matches
 
     def connect(
         self,
@@ -151,17 +157,30 @@ class BleTransport:
         self._write_uuid = None
         self._notify_uuids = []
 
-        # Windows WinRT BLE backend requires the device to be present in the
-        # scanner cache before connect() will succeed.  A short scan here
-        # populates that cache so a direct-address connect works reliably.
-        logger.debug("BLE pre-scanning to discover %s", address)
-        await BleakScanner.discover(timeout=3.0)
+        # Windows WinRT BLE backend often needs the device to be present in the
+        # scanner cache. If scan() just found this address, reuse that cache and
+        # avoid an extra 3-second pre-scan.
+        cached_at = self._scan_cache.get(address)
+        recently_scanned = cached_at is not None and (time.monotonic() - cached_at) <= _SCAN_CACHE_TTL
+        if not recently_scanned:
+            logger.debug("BLE pre-scanning to discover %s", address)
+            devices = await BleakScanner.discover(timeout=3.0)
+            now = time.monotonic()
+            for dev in devices:
+                if dev.address:
+                    self._scan_cache[dev.address] = now
 
         client = BleakClient(address)
         await client.connect(timeout=_CONNECT_TIMEOUT)
 
         # Discover services: ae02/ae04 notify + ae03 write
-        for svc in client.services:
+        services = client.services
+        if not services:
+            get_services = getattr(client, "get_services", None)
+            if callable(get_services):
+                services = await get_services()
+
+        for svc in services:
             for char in svc.characteristics:
                 u = char.uuid.lower()
                 props = char.properties or []
