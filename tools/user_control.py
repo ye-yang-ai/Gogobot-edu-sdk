@@ -507,7 +507,8 @@ class UserControlApp:
         ttk.Checkbutton(controls, text="IMU 数据流", variable=self.imu_enabled, command=self._toggle_imu_stream).pack(side=tk.LEFT, padx=(0, 12))
         ttk.Checkbutton(controls, text="TOF 数据流", variable=self.tof_enabled, command=self._toggle_tof_stream).pack(side=tk.LEFT, padx=(0, 12))
         ttk.Label(controls, text="采样率 Hz").pack(side=tk.LEFT, padx=(0, 6))
-        ttk.Spinbox(controls, from_=1, to=100, textvariable=self.sensor_hz_var, width=6).pack(side=tk.LEFT, padx=(0, 12))
+        ttk.Spinbox(controls, from_=1, to=100, textvariable=self.sensor_hz_var, width=6).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(controls, text="应用采样率", command=self._apply_sensor_hz).pack(side=tk.LEFT, padx=(0, 12))
         ttk.Button(controls, text="清空曲线", command=self._clear_plots).pack(side=tk.LEFT)
 
         plots = ttk.Frame(self.sensor_page)
@@ -734,6 +735,27 @@ class UserControlApp:
         enabled = bool(self.tof_enabled.get())
         hz = self._sensor_hz()
         self._send_command(f"TOF {'开启' if enabled else '关闭'}", lambda: self.controller.request_tof_stream(enabled, hz))
+
+    def _apply_sensor_hz(self) -> None:
+        hz = self._sensor_hz()
+        imu_on = bool(self.imu_enabled.get())
+        tof_on = bool(self.tof_enabled.get())
+        if not imu_on and not tof_on:
+            self._append_log("采样率已更新；数据流未开启，暂未发送到固件。")
+            return
+
+        def apply() -> None:
+            if imu_on:
+                self.controller.request_imu_stream(True, hz)
+            if tof_on:
+                self.controller.request_tof_stream(True, hz)
+
+        streams = []
+        if imu_on:
+            streams.append("IMU")
+        if tof_on:
+            streams.append("TOF")
+        self._send_command(f"应用采样率 {hz}Hz ({'/'.join(streams)})", apply)
 
     def _sensor_hz(self) -> int:
         try:
