@@ -28,7 +28,6 @@ class Action(IntEnum):
     SLOW_DOWN_FOR_CHARGE             = 3   # Slowly crouch down (charging posture)
     SLOW_DOWN_FOR_PROGRAM            = 4   # Timed slow crouch (for programming flow)
     UP_AND_DOWN                      = 5   # Repeated slow up-and-down motion
-    EXCITED_UP_AND_DOWN              = 6   # Excited vertical bobbing motion
 
     SIT_DOWN                         = 7   # Sit down
     SIT_DOWN_FOR_PROGRAM             = 8   # Timed sit-down action (for programming flow)
@@ -76,11 +75,6 @@ class Action(IntEnum):
     LIGHT_ON_INTERACTION             = 45  # Turn flashlight on
     LIGHT_OFF_INTERACTION            = 46  # Turn flashlight off
 
-    ACTION_SEQUENCE_1                = 47  # Action sequence 1
-    ACTION_SEQUENCE_2                = 48  # Action sequence 2
-    ACTION_SEQUENCE_3                = 49  # Action sequence 3
-    ACTION_SEQUENCE_4                = 50  # Action sequence 4
-
     SWING_LEFT_AND_RIGHT             = 52  # Swing left and right
     SWING_LEFT                       = 53  # Swing left
     SWING_RIGHT                      = 54  # Swing right
@@ -97,7 +91,6 @@ class Action(IntEnum):
     RIGHT_ANGLE_INTERACTION          = 65  # Turn right by angle
 
     # aliases (same numeric IDs)
-    KEEP_IN_INTERACTION_MODE = 51
     LOW_FORWARD_AND_BACKWARD = 34
     LOW_FORWARD = 35
     LOW_BACKWARD = 36
@@ -142,7 +135,6 @@ ACTION_SPECS: Dict[Action, ActionSpec] = {
     Action.SLOW_DOWN_FOR_CHARGE: ActionSpec(Action.SLOW_DOWN_FOR_CHARGE, ParameterType.NORMAL, None, "Crouch down for charging posture"),
     Action.SLOW_DOWN_FOR_PROGRAM: ActionSpec(Action.SLOW_DOWN_FOR_PROGRAM, ParameterType.TIME, 5, "Slow crouch for programming flows"),
     Action.UP_AND_DOWN: ActionSpec(Action.UP_AND_DOWN, ParameterType.COUNT, 3, "Up-and-down motion"),
-    Action.EXCITED_UP_AND_DOWN: ActionSpec(Action.EXCITED_UP_AND_DOWN, ParameterType.NORMAL, None, "Excited up-and-down motion"),
     Action.SIT_DOWN: ActionSpec(Action.SIT_DOWN, ParameterType.NORMAL, None, "Sit down"),
     Action.SIT_DOWN_FOR_PROGRAM: ActionSpec(Action.SIT_DOWN_FOR_PROGRAM, ParameterType.TIME, 5, "Sit down for programming flows"),
     Action.STAND_UP: ActionSpec(Action.STAND_UP, ParameterType.NORMAL, None, "Stand up from sitting posture"),
@@ -183,10 +175,6 @@ ACTION_SPECS: Dict[Action, ActionSpec] = {
     Action.STOP_FLAILING: ActionSpec(Action.STOP_FLAILING, ParameterType.NORMAL, None, "Stop flailing"),
     Action.LIGHT_ON_INTERACTION: ActionSpec(Action.LIGHT_ON_INTERACTION, ParameterType.NORMAL, None, "Turn flashlight on"),
     Action.LIGHT_OFF_INTERACTION: ActionSpec(Action.LIGHT_OFF_INTERACTION, ParameterType.NORMAL, None, "Turn flashlight off"),
-    Action.ACTION_SEQUENCE_1: ActionSpec(Action.ACTION_SEQUENCE_1, ParameterType.NORMAL, None, "Action sequence 1"),
-    Action.ACTION_SEQUENCE_2: ActionSpec(Action.ACTION_SEQUENCE_2, ParameterType.NORMAL, None, "Action sequence 2"),
-    Action.ACTION_SEQUENCE_3: ActionSpec(Action.ACTION_SEQUENCE_3, ParameterType.NORMAL, None, "Action sequence 3"),
-    Action.ACTION_SEQUENCE_4: ActionSpec(Action.ACTION_SEQUENCE_4, ParameterType.NORMAL, None, "Action sequence 4"),
     Action.SWING_LEFT_AND_RIGHT: ActionSpec(Action.SWING_LEFT_AND_RIGHT, ParameterType.NORMAL, None, "Swing left and right"),
     Action.SWING_LEFT: ActionSpec(Action.SWING_LEFT, ParameterType.NORMAL, None, "Swing left"),
     Action.SWING_RIGHT: ActionSpec(Action.SWING_RIGHT, ParameterType.NORMAL, None, "Swing right"),
@@ -331,7 +319,7 @@ ACTION_ALIASES: Dict[str, Action] = {
 
 INTERACTION_ACTION_NAMES: List[str] = [
     "IDLE", "SLOW_UP", "SLOW_DOWN", "SLOW_DOWN_FOR_CHARGE", "SLOW_DOWN_FOR_PROGRAM", "UP_AND_DOWN",
-    "EXCITED_UP_AND_DOWN", "SIT_DOWN", "SIT_DOWN_FOR_PROGRAM", "STAND_UP", "SHAKE_HAND",
+    "SIT_DOWN", "SIT_DOWN_FOR_PROGRAM", "STAND_UP", "SHAKE_HAND",
     "SHAKE_HAND_WITH_SIT_DOWN", "NOD", "SHAKE_HEAD", "STRETCH", "PEE", "TWIST", "PUSH_UP", "NEW_YEAR",
     "WAG_TAIL", "STOMP", "SNIFF", "CELEBRATE", "JUMP", "DANCE", "KICK_BALL", "TOUCH_GROUND_RIGHT",
     "TOUCH_GROUND_LEFT", "PLAY_DEAD", "STEP_INTERACTION", "FORWARD_INTERACTION", "BACK_INTERACTION",
@@ -339,9 +327,8 @@ INTERACTION_ACTION_NAMES: List[str] = [
     "LOW_FORWARD_INTERACTION", "LOW_BACKWARD_INTERACTION", "LOW_LEFT_INTERACTION",
     "LOW_RIGHT_INTERACTION", "STOP_INTERACTION", "UP_AND_DOWN_FOR_TEST",
     "ROLLOVER_RECOVERY_RIGHT", "ROLLOVER_RECOVERY_LEFT", "FLAILING", "STOP_FLAILING",
-    "LIGHT_ON_INTERACTION", "LIGHT_OFF_INTERACTION", "ACTION_SEQUENCE_1", "ACTION_SEQUENCE_2",
-    "ACTION_SEQUENCE_3", "ACTION_SEQUENCE_4",
-    "KEEP_IN_INTERACTION_MODE", "SWING_LEFT_AND_RIGHT", "SWING_LEFT", "SWING_RIGHT",
+    "LIGHT_ON_INTERACTION", "LIGHT_OFF_INTERACTION",
+    "SWING_LEFT_AND_RIGHT", "SWING_LEFT", "SWING_RIGHT",
     "EXCITED_INSPACE", "LAZY_PAT_PAT", "CHEEKY_PAW", "WHINING",
     "SNIFF_FORWARD_INTERACTION", "SPACE_BACKWARD_INTERACTION", "SNIFF_LEFT_INTERACTION",
     "SNIFF_RIGHT_INTERACTION", "SNIFF_STEP_INTERACTION", "LEFT_ANGLE_INTERACTION",
