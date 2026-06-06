@@ -8,10 +8,19 @@ with the same sensor JSON as BLE ``ae04`` (``imu`` / ``tof`` fields).
 from __future__ import annotations
 
 import asyncio
+import json
 import threading
 from typing import Any, Awaitable, Callable, Dict, Optional
 
 from .dog import AiDog
+
+
+def _is_websocket_connection_closed(exc: BaseException) -> bool:
+    try:
+        from websockets.exceptions import ConnectionClosed
+    except Exception:
+        return False
+    return isinstance(exc, ConnectionClosed)
 
 
 async def run_dev_pc_websocket_server(
@@ -89,8 +98,23 @@ class DevPcWebSocketHost:
         self._async_stop_ev: Optional[asyncio.Event] = None
         self._thread: Optional[threading.Thread] = None
         self._ready = threading.Event()
+        self._active_ws: Optional[Any] = None
+        self._active_lock = threading.Lock()
+        self._ack_cv = threading.Condition()
+        self._acks: Dict[str, Dict[str, object]] = {}
 
     def _handle_text(self, message: str) -> None:
+        try:
+            obj = json.loads(message)
+            if isinstance(obj, dict) and obj.get("type") == "ack":
+                ack_id = obj.get("id")
+                if ack_id is not None:
+                    with self._ack_cv:
+                        self._acks[str(ack_id)] = obj
+                        self._ack_cv.notify_all()
+                return
+        except Exception:
+            pass
         if self._dog is not None:
             self._dog.feed_sensor_stream_json(message)
         if self._on_imu is None and self._on_tof is None:
@@ -112,10 +136,20 @@ class DevPcWebSocketHost:
                     pass
 
     async def _dispatch_connection(self, ws: Any, *_path: Any) -> None:
-        if self._connection_handler is not None:
-            await self._connection_handler(ws)
-        else:
-            await self._client_loop(ws)
+        with self._active_lock:
+            self._active_ws = ws
+        try:
+            if self._connection_handler is not None:
+                await self._connection_handler(ws)
+            else:
+                await self._client_loop(ws)
+        except Exception as exc:
+            if not _is_websocket_connection_closed(exc):
+                raise
+        finally:
+            with self._active_lock:
+                if self._active_ws is ws:
+                    self._active_ws = None
 
     def _run(self) -> None:
         async def main() -> None:
@@ -151,6 +185,65 @@ class DevPcWebSocketHost:
             raise TimeoutError(
                 f"Dev PC WebSocket not listening on {self._host}:{self._port} within {wait_ready_s}s"
             )
+
+    def send_text(self, text: str, *, timeout_s: float = 3.0) -> None:
+        loop = self._loop
+        with self._active_lock:
+            ws = self._active_ws
+        if loop is None or ws is None:
+            raise ConnectionError("No active robot WebSocket connection.")
+        fut = asyncio.run_coroutine_threadsafe(ws.send(str(text)), loop)
+        fut.result(timeout=max(0.1, float(timeout_s)))
+
+    def send_control_raw(
+        self,
+        mode: int,
+        data: list[int],
+        *,
+        command_id: Optional[str] = None,
+        timeout_s: float = 3.0,
+    ) -> None:
+        packet = bytes([0xAA, 0x55, 0x00, int(mode) & 0xFF, *[int(x) & 0xFF for x in data]])
+        payload: Dict[str, object] = {"cmd": "control_raw", "packet": packet.hex().upper()}
+        if command_id is not None:
+            payload["id"] = str(command_id)
+        self.send_text(json.dumps(payload, separators=(",", ":")), timeout_s=timeout_s)
+
+    def wait_control_ack(
+        self,
+        command_id: str,
+        *,
+        timeout_s: float = 1.0,
+    ) -> Optional[Dict[str, object]]:
+        import time
+
+        key = str(command_id)
+        deadline = time.monotonic() + max(0.0, float(timeout_s))
+        with self._ack_cv:
+            while True:
+                ack = self._acks.pop(key, None)
+                if ack is not None:
+                    return ack
+                remain_s = deadline - time.monotonic()
+                if remain_s <= 0:
+                    return None
+                self._ack_cv.wait(remain_s)
+
+    @property
+    def is_robot_connected(self) -> bool:
+        with self._active_lock:
+            return self._active_ws is not None
+
+    def wait_robot_connected(self, *, timeout_s: float = 30.0, poll_s: float = 0.1) -> bool:
+        import time
+
+        deadline = time.monotonic() + max(0.0, float(timeout_s))
+        delay = max(0.01, float(poll_s))
+        while time.monotonic() < deadline:
+            if self.is_robot_connected:
+                return True
+            time.sleep(delay)
+        return self.is_robot_connected
 
     def stop(self) -> None:
         loop = self._loop

@@ -12,6 +12,7 @@ SDK behavior depends on firmware support. Keep this file updated whenever firmwa
 | IMU / TOF sensor stream | `ae04` notify / indicate JSON | `request_imu_stream`, `request_tof_stream` |
 | Action definition read | `ae10` read characteristic | `get_action_list()` |
 | Dev PC WebSocket sensor mirror | `DEV_PC_AUDIO_WS_ENABLE`, text JSON mirror | `DevPcWebSocketHost` |
+| Dev PC WebSocket control | text JSON `control_raw` dispatch to remote-control raw parser | `transport="ws"`, `tools/user_control_ws.py` |
 | Bidirectional PCM audio | Dev PC audio WebSocket firmware path | `examples/05_audio/bidirectional_pcm_ws_host.py` |
 | Robot adjustment | `MODE_ROBOT_ADJUST = 0x0A` | `syn_pose_adjust`, `syn_foot_adjust`, `syn_joint_adjust` |
 
@@ -22,6 +23,8 @@ SDK behavior depends on firmware support. Keep this file updated whenever firmwa
 - `set_volume()` requires the firmware config parser to accept `{"cmd":1,"volume":0-4}` on `ae01`.
 - `ae10` action list reading is optional and may not exist on all firmware versions.
 - WebSocket sensor mirror and bidirectional audio require firmware configuration and LAN reachability.
+- WebSocket control requires the firmware to parse text JSON `{"cmd":"control_raw","packet":"..."}` and return `control_raw` ACK frames.
+- `tools/user_control_ws.py` uses WebSocket for movement, action, ear, expression, audio, special detection, and sensor stream controls. Volume remains BLE-only until firmware WebSocket config JSON is added.
 
 ## Recommended Release Practice
 

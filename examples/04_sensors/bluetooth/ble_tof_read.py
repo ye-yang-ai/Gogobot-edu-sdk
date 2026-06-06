@@ -7,7 +7,7 @@ Risk level:
 Dependencies:
     pip install -e .
 Run:
-    python examples/04_sensors/tof_ble_read.py --hz 20 --mode both
+    python examples/04_sensors/bluetooth/ble_tof_read.py --hz 20 --mode both
 Expected result:
     The terminal prints TOF distance readings until stopped.
 Exit:
@@ -22,7 +22,7 @@ import time
 from pathlib import Path
 from typing import Callable, Dict
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
+_REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 

@@ -137,6 +137,34 @@ class AiDog:
         self._imu_callbacks: List[Callable[[Dict[str, object]], None]] = []
         self._tof_callbacks: List[Callable[[Dict[str, object]], None]] = []
         self._special_detection_enabled: Optional[bool] = None
+        self._ws_control: Optional[Any] = None
+        self._ws_control_seq = 0
+
+    def attach_ws_control(self, ws_host: Any) -> None:
+        """Attach a DevPcWebSocketHost for transport="ws" control."""
+        self._ws_control = ws_host
+
+    def _send_control(self, mode: int, data: List[int], *, transport: str = "ble") -> None:
+        channel = str(transport).lower()
+        if channel == "ble":
+            self._ble.send_data(int(mode) & 0xFF, data)
+            return
+        if channel == "ws":
+            if self._ws_control is None:
+                raise ConnectionError("WebSocket control is not attached.")
+            self._ws_control_seq += 1
+            command_id = f"dog-{int(mode) & 0xFF}-{self._ws_control_seq}"
+            self._ws_control.send_control_raw(int(mode) & 0xFF, data, command_id=command_id)
+            wait_ack = getattr(self._ws_control, "wait_control_ack", None)
+            if callable(wait_ack):
+                ack = wait_ack(command_id, timeout_s=1.2)
+                if ack is None:
+                    raise TimeoutError(f"WebSocket control ack timeout: {command_id}")
+                if ack.get("result") != "accepted":
+                    reason = ack.get("reason_code", "unknown")
+                    raise RuntimeError(f"WebSocket control rejected: {reason}")
+            return
+        raise ValueError(f"Unsupported transport: {transport!r}")
 
     @staticmethod
     def _normalize_imu_payload(imu: Dict[str, object]) -> Dict[str, object]:
@@ -347,6 +375,7 @@ class AiDog:
         angle: Optional[int] = None,
         timeout_s: float = 20.0,
         require_running_state: bool = True,
+        transport: str = "ble",
     ) -> bool:
         """
         Send an interaction action and wait for firmware completion feedback.
@@ -400,7 +429,7 @@ class AiDog:
             with self._notify_lock:
                 start_status_seq = self._interaction_status_notify_seq
 
-            self.send_interaction(int(act), action_param)
+            self.send_interaction(int(act), action_param, transport=transport)
 
             deadline = time.time() + max(0.1, wait_timeout)
             seen_running = False
@@ -458,42 +487,44 @@ class AiDog:
         *,
         walk: bool = False,
         speed: bool = False,
+        transport: str = "ble",
     ) -> None:
         """Compatibility wrapper for angle-based movement input."""
         deg = direction_deg % 360
         if velocity <= 0:
-            self.stop_movement()
+            self.stop_movement(transport=transport)
             return
 
         if deg <= 45 or deg > 315:
-            self.send_movement(Movement.FORWARD)
+            self.send_movement(Movement.FORWARD, transport=transport)
         elif deg <= 135:
-            self.send_movement(Movement.RIGHT)
+            self.send_movement(Movement.RIGHT, transport=transport)
         elif deg <= 225:
-            self.send_movement(Movement.BACK)
+            self.send_movement(Movement.BACK, transport=transport)
         else:
-            self.send_movement(Movement.LEFT)
+            self.send_movement(Movement.LEFT, transport=transport)
 
-    def stop_movement(self) -> None:
+    def stop_movement(self, *, transport: str = "ble") -> None:
         """Stop movement."""
-        self.send_offsets("STOP")
+        self.send_offsets("STOP", transport=transport)
 
-    def reset(self) -> None:
+    def reset(self, *, transport: str = "ble") -> None:
         """
         Compatibility reset API: stop movement + send interaction STOP.
         """
-        self.stop_movement()
-        self.send_interaction(int(Action.STOP_INTERACTION))
+        self.stop_movement(transport=transport)
+        self.send_interaction(int(Action.STOP_INTERACTION), transport=transport)
 
-    def start_movement(self, direction: Union[int, Movement]) -> None:
+    def start_movement(self, direction: Union[int, Movement], *, transport: str = "ble") -> None:
         """Start movement in a given direction."""
-        self.send_movement(direction)
+        self.send_movement(direction, transport=transport)
 
     def send_movement(
         self,
         direction: Union[int, Movement],
         *,
         duration_s: Optional[float] = None,
+        transport: str = "ble",
     ) -> None:
         """
         Send directional movement command.
@@ -511,7 +542,7 @@ class AiDog:
         direction_name = direction_define.get(int(direction))
         if not direction_name:
             raise ValueError(f"Unsupported movement direction: {direction}")
-        self.send_offsets(direction_name)
+        self.send_offsets(direction_name, transport=transport)
         if duration_s is not None:
             duration = float(duration_s)
             if duration <= 0:
@@ -519,11 +550,13 @@ class AiDog:
             try:
                 time.sleep(duration)
             finally:
-                self.stop_movement()
+                self.stop_movement(transport=transport)
 
     def send_offsets(
         self,
         direction: str = "STOP",
+        *,
+        transport: str = "ble",
     ) -> None:
         """Send full movement parameter packet."""
         gait = 1
@@ -558,9 +591,15 @@ class AiDog:
         data.extend(struct.pack("<f", math.radians(180)))  # LF
         data.extend(struct.pack("<f", math.radians(180)))  # RH
         data.extend(struct.pack("<f", math.radians(0)))  # LH
-        self._ble.send_data(MODE_SPORT, list(data))
+        self._send_control(MODE_SPORT, list(data), transport=transport)
 
-    def send_interaction(self, action_id: int, param: Optional[int] = None) -> None:
+    def send_interaction(
+        self,
+        action_id: int,
+        param: Optional[int] = None,
+        *,
+        transport: str = "ble",
+    ) -> None:
         """Send interaction action with optional param."""
         action_value = int(action_id)
         data = [action_value & 0xFF]
@@ -574,20 +613,20 @@ class AiDog:
                 data.extend([value & 0xFF, (value >> 8) & 0xFF])
             else:
                 data.append(max(0, min(255, int(param))))
-        self._ble.send_data(MODE_INTERACTION, data)
+        self._send_control(MODE_INTERACTION, data, transport=transport)
 
-    def send_ear(self, ear_action_id: Union[int, EarAction]) -> None:
+    def send_ear(self, ear_action_id: Union[int, EarAction], *, transport: str = "ble") -> None:
         """Send ear action ID (MODE_EAR)."""
-        self._ble.send_data(MODE_EAR, [int(ear_action_id) & 0xFF])
+        self._send_control(MODE_EAR, [int(ear_action_id) & 0xFF], transport=transport)
 
-    def send_ear_percentage(self, percentage: int) -> None:
+    def send_ear_percentage(self, percentage: int, *, transport: str = "ble") -> None:
         """Send ear position percentage (command 14)."""
         p = max(0, min(100, int(percentage)))
-        self._ble.send_data(MODE_EAR, [14, p])
+        self._send_control(MODE_EAR, [14, p], transport=transport)
 
-    def toggle_special_detection(self) -> None:
+    def toggle_special_detection(self, *, transport: str = "ble") -> None:
         """Toggle special-state detection / autonomous interaction (command 15)."""
-        self._ble.send_data(MODE_EAR, [_SPECIAL_DETECTION_TOGGLE])
+        self._send_control(MODE_EAR, [_SPECIAL_DETECTION_TOGGLE], transport=transport)
         if self._special_detection_enabled is not None:
             self._special_detection_enabled = not self._special_detection_enabled
 
@@ -596,6 +635,7 @@ class AiDog:
         enable: bool,
         *,
         assume_current: Optional[bool] = None,
+        transport: str = "ble",
     ) -> None:
         """
         Set special-state detection to an explicit ON/OFF target.
@@ -609,16 +649,26 @@ class AiDog:
         _ = assume_current
         target = bool(enable)
         cmd = _SPECIAL_DETECTION_ENABLE if target else _SPECIAL_DETECTION_DISABLE
-        self._ble.send_data(MODE_EAR, [cmd])
+        self._send_control(MODE_EAR, [cmd], transport=transport)
         self._special_detection_enabled = target
 
-    def enable_special_detection(self, *, assume_current: Optional[bool] = None) -> None:
+    def enable_special_detection(
+        self,
+        *,
+        assume_current: Optional[bool] = None,
+        transport: str = "ble",
+    ) -> None:
         """Explicitly enable special-state detection."""
-        self.set_special_detection(True, assume_current=assume_current)
+        self.set_special_detection(True, assume_current=assume_current, transport=transport)
 
-    def disable_special_detection(self, *, assume_current: Optional[bool] = None) -> None:
+    def disable_special_detection(
+        self,
+        *,
+        assume_current: Optional[bool] = None,
+        transport: str = "ble",
+    ) -> None:
         """Explicitly disable special-state detection."""
-        self.set_special_detection(False, assume_current=assume_current)
+        self.set_special_detection(False, assume_current=assume_current, transport=transport)
 
     def set_tof_enable(self, enable: bool) -> None:
         """
@@ -631,13 +681,18 @@ class AiDog:
             {"mode": _CONTROL_JSON_NOOP_MODE, "tof_enable": 1 if enable else 0}
         )
 
-    def send_expression(self, expression_id: Union[int, ExpressionAction]) -> None:
+    def send_expression(
+        self,
+        expression_id: Union[int, ExpressionAction],
+        *,
+        transport: str = "ble",
+    ) -> None:
         """Send expression ID."""
-        self._ble.send_data(MODE_EXPRESSION, [int(expression_id) & 0xFF])
+        self._send_control(MODE_EXPRESSION, [int(expression_id) & 0xFF], transport=transport)
 
-    def send_audio(self, tone_id: Union[int, Tone]) -> None:
+    def send_audio(self, tone_id: Union[int, Tone], *, transport: str = "ble") -> None:
         """Send audio control ID (0=stop, >0=play)."""
-        self._ble.send_data(MODE_AUDIO, [int(tone_id) & 0xFF])
+        self._send_control(MODE_AUDIO, [int(tone_id) & 0xFF], transport=transport)
 
     def set_volume(
         self,
@@ -664,13 +719,13 @@ class AiDog:
     # Extended low-level APIs (microphone / speaker / servo / IMU)
     # ------------------------------------------------------------------
 
-    def send_raw(self, mode: int, data: List[int]) -> None:
+    def send_raw(self, mode: int, data: List[int], *, transport: str = "ble") -> None:
         """
         Send a raw protocol packet: [0xAA, 0x55, 0x00, mode, ...data].
 
         Useful for quickly integrating new firmware commands beyond high-level APIs.
         """
-        self._ble.send_data(int(mode) & 0xFF, data)
+        self._send_control(int(mode) & 0xFF, data, transport=transport)
 
     @staticmethod
     def _pose_item_to_tuple(item: Union[Mapping[str, Any], Sequence[Any]]) -> Tuple[str, float, float]:
@@ -870,6 +925,7 @@ class AiDog:
         mode: int = MODE_SENSOR,
         cmd_enable: int = 0x01,
         cmd_disable: int = 0x00,
+        transport: str = "ble",
     ) -> None:
         """
         Request firmware to enable/disable realtime IMU in the **ae04** sensor JSON
@@ -882,9 +938,13 @@ class AiDog:
         - Disable: [cmd_disable]
         """
         if enable:
-            self._ble.send_data(int(mode) & 0xFF, [cmd_enable & 0xFF, max(1, min(200, int(hz)))])
+            self._send_control(
+                int(mode) & 0xFF,
+                [cmd_enable & 0xFF, max(1, min(200, int(hz)))],
+                transport=transport,
+            )
         else:
-            self._ble.send_data(int(mode) & 0xFF, [cmd_disable & 0xFF])
+            self._send_control(int(mode) & 0xFF, [cmd_disable & 0xFF], transport=transport)
 
     def get_latest_imu(self) -> Optional[Dict[str, object]]:
         """
@@ -922,6 +982,7 @@ class AiDog:
         mode: int = MODE_SENSOR,
         cmd_enable: int = 0x02,
         cmd_disable: int = 0x03,
+        transport: str = "ble",
     ) -> None:
         """
         Request firmware to enable/disable realtime TOF in the **ae04** sensor JSON
@@ -932,9 +993,13 @@ class AiDog:
         - Disable: [cmd_disable]
         """
         if enable:
-            self._ble.send_data(int(mode) & 0xFF, [cmd_enable & 0xFF, max(1, min(200, int(hz)))])
+            self._send_control(
+                int(mode) & 0xFF,
+                [cmd_enable & 0xFF, max(1, min(200, int(hz)))],
+                transport=transport,
+            )
         else:
-            self._ble.send_data(int(mode) & 0xFF, [cmd_disable & 0xFF])
+            self._send_control(int(mode) & 0xFF, [cmd_disable & 0xFF], transport=transport)
 
     def get_latest_tof(self) -> Optional[Dict[str, object]]:
         """Get the latest parsed TOF payload."""

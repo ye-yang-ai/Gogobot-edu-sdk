@@ -62,11 +62,11 @@ with AiDog() as dog:
 
 ## 5. Next Examples
 
-- `examples/01_connection/scan_and_connect.py`: BLE scan and connection.
-- `examples/02_actions/basic_actions.py`: one high-level action.
-- `examples/02_actions/ears_expressions_audio.py`: ears, expressions, and tones.
-- `examples/03_movement/directional_move.py`: directional movement.
-- `examples/04_sensors/imu_ble_read.py`: BLE IMU stream.
-- `examples/04_sensors/tof_ble_read.py`: BLE TOF stream.
+- `examples/01_connection/bluetooth/ble_scan_and_connect.py`: BLE scan and connection.
+- `examples/02_actions/bluetooth/ble_basic_actions.py`: one high-level action.
+- `examples/02_actions/bluetooth/ble_ears_expressions_audio.py`: ears, expressions, and tones.
+- `examples/03_movement/bluetooth/ble_directional_move.py`: directional movement.
+- `examples/04_sensors/bluetooth/ble_imu_read.py`: BLE IMU stream.
+- `examples/04_sensors/bluetooth/ble_tof_read.py`: BLE TOF stream.
 
 Read [Safety Guide](safety.md) before running movement or robot adjustment examples.
