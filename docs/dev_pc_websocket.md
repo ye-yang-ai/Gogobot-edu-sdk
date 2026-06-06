@@ -48,7 +48,7 @@ python examples/04_sensors/websocket/ws_tof_lan_read.py --bind 0.0.0.0 --port 87
 
 ## Control over WebSocket
 
-WebSocket control uses text JSON frames carrying the same raw packet that BLE writes to `ae03`. The firmware dispatches it through the existing remote-control parser, so action, ear, expression, audio, special detection, movement, and sensor stream commands keep BLE-compatible behavior.
+WebSocket control uses text JSON frames carrying the same raw packet that BLE writes to `ae03`. The firmware dispatches it through the existing remote-control parser, so action, ear, expression, audio, special detection, movement, and sensor stream commands keep BLE-compatible behavior. Config commands such as volume use `config_json`, which wraps the same JSON payload used by the BLE config channel.
 
 High-level SDK usage:
 
@@ -94,7 +94,7 @@ Workflow:
 3. The panel listens on `ws://0.0.0.0:8766` by default, matching the WebSocket examples.
 4. After the robot connects, use the same pages as the BLE panel for movement, actions, ears, expressions, audio, special detection, and sensor plots.
 
-The volume page is kept for UI consistency, but current firmware WebSocket downlink parses `control_raw` and `sensor_stream` only. Volume still requires the BLE config JSON path until WebSocket config JSON is added.
+The volume page uses WebSocket `config_json`, which wraps the same config payload that BLE writes to the firmware config channel.
 
 ## Bidirectional PCM Audio
 

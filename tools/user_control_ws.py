@@ -131,7 +131,8 @@ class RobotController:
             self.dog.send_audio(tone, transport="ws")
 
     def set_volume(self, volume: int) -> None:
-        raise NotImplementedError("当前固件 WebSocket 下行暂不解析音量配置 JSON，请先使用 BLE 音量工具。")
+        with self._lock:
+            self.dog.set_volume(volume, transport="ws")
 
     def request_imu_stream(self, enabled: bool, hz: int) -> None:
         with self._lock:

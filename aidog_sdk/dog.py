@@ -166,6 +166,33 @@ class AiDog:
             return
         raise ValueError(f"Unsupported transport: {transport!r}")
 
+    def _send_config(self, config: Dict[str, object], *, transport: str = "ble") -> None:
+        channel = str(transport).lower()
+        if channel == "ble":
+            self._ble.send_config_json(config)
+            return
+        if channel == "ws":
+            if self._ws_control is None:
+                raise ConnectionError("WebSocket control is not attached.")
+            self._ws_control_seq += 1
+            command_id = f"dog-config-{self._ws_control_seq}"
+            send_config = getattr(self._ws_control, "send_config_json", None)
+            if not callable(send_config):
+                raise RuntimeError("WebSocket control does not support config_json.")
+            send_config(config, command_id=command_id)
+            wait_ack = getattr(self._ws_control, "wait_ack", None)
+            if not callable(wait_ack):
+                wait_ack = getattr(self._ws_control, "wait_control_ack", None)
+            if callable(wait_ack):
+                ack = wait_ack(command_id, timeout_s=1.2)
+                if ack is None:
+                    raise TimeoutError(f"WebSocket config ack timeout: {command_id}")
+                if ack.get("result") != "accepted":
+                    reason = ack.get("reason_code", "unknown")
+                    raise RuntimeError(f"WebSocket config rejected: {reason}")
+            return
+        raise ValueError(f"Unsupported transport: {transport!r}")
+
     @staticmethod
     def _normalize_imu_payload(imu: Dict[str, object]) -> Dict[str, object]:
         """
@@ -700,6 +727,7 @@ class AiDog:
         *,
         verify_tone: Optional[Union[int, Tone]] = None,
         verify_delay_s: float = 0.2,
+        transport: str = "ble",
     ) -> None:
         """
         Set robot volume through the firmware config channel.
@@ -708,12 +736,12 @@ class AiDog:
         provided, the SDK plays that tone after the setting is sent.
         """
         level = max(0, min(4, int(volume)))
-        self._ble.send_config_json({"cmd": CONFIG_SET_VOLUME, "volume": level})
+        self._send_config({"cmd": CONFIG_SET_VOLUME, "volume": level}, transport=transport)
         if verify_tone is not None:
             delay = max(0.0, float(verify_delay_s))
             if delay:
                 time.sleep(delay)
-            self.send_audio(verify_tone)
+            self.send_audio(verify_tone, transport=transport)
 
     # ------------------------------------------------------------------
     # Extended low-level APIs (microphone / speaker / servo / IMU)

@@ -209,7 +209,19 @@ class DevPcWebSocketHost:
             payload["id"] = str(command_id)
         self.send_text(json.dumps(payload, separators=(",", ":")), timeout_s=timeout_s)
 
-    def wait_control_ack(
+    def send_config_json(
+        self,
+        config: Dict[str, object],
+        *,
+        command_id: Optional[str] = None,
+        timeout_s: float = 3.0,
+    ) -> None:
+        payload: Dict[str, object] = {"cmd": "config_json", "config": dict(config)}
+        if command_id is not None:
+            payload["id"] = str(command_id)
+        self.send_text(json.dumps(payload, separators=(",", ":")), timeout_s=timeout_s)
+
+    def wait_ack(
         self,
         command_id: str,
         *,
@@ -228,6 +240,14 @@ class DevPcWebSocketHost:
                 if remain_s <= 0:
                     return None
                 self._ack_cv.wait(remain_s)
+
+    def wait_control_ack(
+        self,
+        command_id: str,
+        *,
+        timeout_s: float = 1.0,
+    ) -> Optional[Dict[str, object]]:
+        return self.wait_ack(command_id, timeout_s=timeout_s)
 
     @property
     def is_robot_connected(self) -> bool:

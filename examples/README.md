@@ -99,4 +99,4 @@ Read `../docs/safety.md` before running medium or high-risk examples.
 ## Control Panels
 
 - `../tools/user_control_ble.py`: BLE upper-computer panel.
-- `../tools/user_control_ws.py`: WebSocket upper-computer panel. It uses the same page layout as the BLE panel and waits for the robot to connect to the PC WebSocket host.
+- `../tools/user_control_ws.py`: WebSocket upper-computer panel. It uses the same page layout as the BLE panel and waits for the robot to connect to the PC WebSocket host, including WebSocket volume control through `config_json`.
