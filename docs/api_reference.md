@@ -26,10 +26,11 @@ This page summarizes the public APIs exported from `aidog_sdk`.
 
 ### Action Inputs
 
-`perform_action()` accepts an `Action` enum member, a string from
+`perform_action()` accepts a public `Action` enum member, a string from
 `ACTION_ALIASES`, or an integer firmware action ID. Prefer enum members in
 application code; use strings for user-facing input and integers for protocol
-compatibility.
+compatibility. Firmware-only IDs `6`, `47`, `48`, `49`, `50`, and `51` are not
+exposed by the SDK; integer inputs for those IDs are neutralized to `IDLE`.
 
 ```python
 dog.perform_action(Action.SIT_DOWN)

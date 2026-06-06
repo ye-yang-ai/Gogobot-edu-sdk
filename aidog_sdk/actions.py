@@ -20,7 +20,7 @@ from typing import Dict, List, Optional, Set, Tuple
 
 
 class Action(IntEnum):
-    """All robot motions, indexed as in the firmware QRMotion_TypeDef enum."""
+    """Public robot motions, using firmware QRMotion_TypeDef IDs."""
 
     IDLE                             = 0
     SLOW_UP                          = 1   # Slowly stand up on all four legs
@@ -162,11 +162,11 @@ ACTION_SPECS: Dict[Action, ActionSpec] = {
     Action.BACK_INTERACTION: ActionSpec(Action.BACK_INTERACTION, ParameterType.TIME, 3, "Move backward"),
     Action.LEFT_INTERACTION: ActionSpec(Action.LEFT_INTERACTION, ParameterType.TIME, 3, "Turn left"),
     Action.RIGHT_INTERACTION: ActionSpec(Action.RIGHT_INTERACTION, ParameterType.TIME, 3, "Turn right"),
-    Action.LOW_FORWARD_AND_BACKWARD_INTERACTION: ActionSpec(Action.LOW_FORWARD_AND_BACKWARD_INTERACTION, ParameterType.NORMAL, None, "Low posture forward/backward movement"),
-    Action.LOW_FORWARD_INTERACTION: ActionSpec(Action.LOW_FORWARD_INTERACTION, ParameterType.NORMAL, None, "Low posture forward movement"),
-    Action.LOW_BACKWARD_INTERACTION: ActionSpec(Action.LOW_BACKWARD_INTERACTION, ParameterType.NORMAL, None, "Low posture backward movement"),
-    Action.LOW_LEFT_INTERACTION: ActionSpec(Action.LOW_LEFT_INTERACTION, ParameterType.NORMAL, None, "Low posture left turn"),
-    Action.LOW_RIGHT_INTERACTION: ActionSpec(Action.LOW_RIGHT_INTERACTION, ParameterType.NORMAL, None, "Low posture right turn"),
+    Action.LOW_FORWARD_AND_BACKWARD_INTERACTION: ActionSpec(Action.LOW_FORWARD_AND_BACKWARD_INTERACTION, ParameterType.TIME, 3, "Low posture forward/backward movement"),
+    Action.LOW_FORWARD_INTERACTION: ActionSpec(Action.LOW_FORWARD_INTERACTION, ParameterType.TIME, 3, "Low posture forward movement"),
+    Action.LOW_BACKWARD_INTERACTION: ActionSpec(Action.LOW_BACKWARD_INTERACTION, ParameterType.TIME, 3, "Low posture backward movement"),
+    Action.LOW_LEFT_INTERACTION: ActionSpec(Action.LOW_LEFT_INTERACTION, ParameterType.TIME, 3, "Low posture left turn"),
+    Action.LOW_RIGHT_INTERACTION: ActionSpec(Action.LOW_RIGHT_INTERACTION, ParameterType.TIME, 3, "Low posture right turn"),
     Action.STOP_INTERACTION: ActionSpec(Action.STOP_INTERACTION, ParameterType.NORMAL, None, "Stop interaction motion"),
     Action.UP_AND_DOWN_FOR_TEST: ActionSpec(Action.UP_AND_DOWN_FOR_TEST, ParameterType.NORMAL, None, "Up-and-down test motion"),
     Action.ROLLOVER_RECOVERY_RIGHT: ActionSpec(Action.ROLLOVER_RECOVERY_RIGHT, ParameterType.NORMAL, None, "Recover from right-side rollover"),
@@ -182,11 +182,11 @@ ACTION_SPECS: Dict[Action, ActionSpec] = {
     Action.LAZY_PAT_PAT: ActionSpec(Action.LAZY_PAT_PAT, ParameterType.NORMAL, None, "Lazy pat-pat motion"),
     Action.CHEEKY_PAW: ActionSpec(Action.CHEEKY_PAW, ParameterType.NORMAL, None, "Cheeky paw motion"),
     Action.WHINING: ActionSpec(Action.WHINING, ParameterType.NORMAL, None, "Whining motion"),
-    Action.SNIFF_FORWARD_INTERACTION: ActionSpec(Action.SNIFF_FORWARD_INTERACTION, ParameterType.NORMAL, None, "Sniff forward"),
-    Action.SPACE_BACKWARD_INTERACTION: ActionSpec(Action.SPACE_BACKWARD_INTERACTION, ParameterType.NORMAL, None, "Space-walk backward"),
-    Action.SNIFF_LEFT_INTERACTION: ActionSpec(Action.SNIFF_LEFT_INTERACTION, ParameterType.NORMAL, None, "Sniff left turn"),
-    Action.SNIFF_RIGHT_INTERACTION: ActionSpec(Action.SNIFF_RIGHT_INTERACTION, ParameterType.NORMAL, None, "Sniff right turn"),
-    Action.SNIFF_STEP_INTERACTION: ActionSpec(Action.SNIFF_STEP_INTERACTION, ParameterType.NORMAL, None, "Sniff step in place"),
+    Action.SNIFF_FORWARD_INTERACTION: ActionSpec(Action.SNIFF_FORWARD_INTERACTION, ParameterType.TIME, 3, "Sniff forward"),
+    Action.SPACE_BACKWARD_INTERACTION: ActionSpec(Action.SPACE_BACKWARD_INTERACTION, ParameterType.TIME, 3, "Space-walk backward"),
+    Action.SNIFF_LEFT_INTERACTION: ActionSpec(Action.SNIFF_LEFT_INTERACTION, ParameterType.TIME, 3, "Sniff left turn"),
+    Action.SNIFF_RIGHT_INTERACTION: ActionSpec(Action.SNIFF_RIGHT_INTERACTION, ParameterType.TIME, 3, "Sniff right turn"),
+    Action.SNIFF_STEP_INTERACTION: ActionSpec(Action.SNIFF_STEP_INTERACTION, ParameterType.TIME, 3, "Sniff step in place"),
     Action.LEFT_ANGLE_INTERACTION: ActionSpec(Action.LEFT_ANGLE_INTERACTION, ParameterType.ANGLE, 90, "Turn left by a specified angle"),
     Action.RIGHT_ANGLE_INTERACTION: ActionSpec(Action.RIGHT_ANGLE_INTERACTION, ParameterType.ANGLE, 90, "Turn right by a specified angle"),
 }
@@ -205,6 +205,14 @@ ACTION_DEFAULTS: Dict[Action, Optional[int]] = {
 }
 ACTION_PARAMETER_TYPES: Dict[Action, ParameterType] = {
     action: spec.parameter_type for action, spec in ACTION_SPECS.items()
+}
+_HIDDEN_ACTION_ID_MAP: Dict[int, Action] = {
+    6: Action.IDLE,
+    47: Action.IDLE,
+    48: Action.IDLE,
+    49: Action.IDLE,
+    50: Action.IDLE,
+    51: Action.IDLE,
 }
 
 # ---------------------------------------------------------------------------
@@ -548,6 +556,8 @@ def resolve_action(name_or_id) -> Action:
     if isinstance(name_or_id, Action):
         return name_or_id
     if isinstance(name_or_id, int):
+        if name_or_id in _HIDDEN_ACTION_ID_MAP:
+            return _HIDDEN_ACTION_ID_MAP[name_or_id]
         return Action(name_or_id)
     if isinstance(name_or_id, str):
         key = name_or_id.lower()

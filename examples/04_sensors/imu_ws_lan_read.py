@@ -23,6 +23,8 @@ Exit:
 from __future__ import annotations
 
 import argparse
+import asyncio
+import json
 import sys
 import time
 from pathlib import Path
@@ -62,25 +64,54 @@ def build_imu_printer(mode: str, raw: str) -> Callable[[Dict[str, object]], None
     return print_imu
 
 
+def build_ws_connection_handler(dog: AiDog, hz: int, print_imu: Callable[[Dict[str, object]], None]):
+    async def handle_connection(ws) -> None:
+        await asyncio.sleep(0.2)
+        cmd = {"cmd": "sensor_stream", "imu": {"enable": True, "hz": hz}}
+        await ws.send(json.dumps(cmd, separators=(",", ":")))
+        print(f"[WS] requested IMU stream hz={hz}")
+
+        async for message in ws:
+            if not isinstance(message, str):
+                continue
+            try:
+                data = json.loads(message)
+            except json.JSONDecodeError:
+                continue
+            if data.get("type") == "ack" and data.get("cmd") == "sensor_stream":
+                print(f"[WS] ack {data}")
+                continue
+            dog.feed_sensor_stream_json(message)
+            _, imu, _ = AiDog.parse_notify_json_text(message)
+            if imu is not None:
+                print_imu(imu)
+
+    return handle_connection
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Read IMU via Dev PC WebSocket")
     parser.add_argument("--bind", default="0.0.0.0", help="listen address")
     parser.add_argument("--port", type=int, default=8766, help="listen port")
     parser.add_argument("--ble", action="store_true", help="also connect BLE to request stream rate")
+    parser.add_argument("--ws-config", action="store_true", help="send IMU hz config over WebSocket after robot connects")
     parser.add_argument("--name-prefix", default="Changba-Ai-Dog", help="BLE name prefix when --ble")
     parser.add_argument("--address", default=None, help="BLE address or platform UUID when --ble")
-    parser.add_argument("--hz", type=int, default=50, help="BLE requested IMU rate when --ble")
+    parser.add_argument("--hz", type=int, default=50, help="requested IMU rate for --ble or --ws-config")
     parser.add_argument("--timeout", type=float, default=0.0, help="auto-exit after seconds; 0 runs forever")
     parser.add_argument("--mode", choices=("angles", "raw"), default="angles")
     parser.add_argument("--raw", choices=("accel", "gyro", "both"), default="accel")
     args = parser.parse_args()
 
     dog = AiDog(imu_only_notify=True)
+    imu_printer = build_imu_printer(args.mode, args.raw)
+    hz = max(1, min(200, args.hz))
     host = DevPcWebSocketHost(
         host=args.bind,
         port=args.port,
-        dog=dog,
-        on_imu=build_imu_printer(args.mode, args.raw),
+        dog=None if args.ws_config else dog,
+        on_imu=None if args.ws_config else imu_printer,
+        connection_handler=build_ws_connection_handler(dog, hz, imu_printer) if args.ws_config else None,
     )
 
     try:
@@ -92,7 +123,6 @@ def main() -> int:
                 dog.connect(address=args.address)
             else:
                 dog.connect(args.name_prefix)
-            hz = max(1, min(200, args.hz))
             dog.request_imu_stream(True, hz=hz)
             print(f"[BLE] requested IMU stream hz={hz}")
 

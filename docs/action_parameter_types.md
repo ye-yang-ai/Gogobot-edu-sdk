@@ -1,6 +1,6 @@
 # Robot Action Parameter Types
 
-This document lists the interaction actions by parameter type: time based, count based, angle based, and normal.
+This document lists public interaction actions by parameter type: time based, count based, angle based, and normal. Firmware-only IDs 6, 47, 48, 49, 50, and 51 are hidden by the SDK; integer inputs for those IDs are neutralized to `IDLE`.
 
 When using `AiDog.perform_action()`:
 
@@ -25,6 +25,16 @@ Time based actions accept a `duration` parameter. If no parameter is provided, t
 | 31 | `BACK_INTERACTION` | 3 seconds | Move backward |
 | 32 | `LEFT_INTERACTION` | 3 seconds | Turn left |
 | 33 | `RIGHT_INTERACTION` | 3 seconds | Turn right |
+| 34 | `LOW_FORWARD_AND_BACKWARD_INTERACTION` | 3 seconds | Low posture forward/backward movement |
+| 35 | `LOW_FORWARD_INTERACTION` | 3 seconds | Low posture forward movement |
+| 36 | `LOW_BACKWARD_INTERACTION` | 3 seconds | Low posture backward movement |
+| 37 | `LOW_LEFT_INTERACTION` | 3 seconds | Low posture left turn |
+| 38 | `LOW_RIGHT_INTERACTION` | 3 seconds | Low posture right turn |
+| 59 | `SNIFF_FORWARD_INTERACTION` | 3 seconds | Sniff forward |
+| 60 | `SPACE_BACKWARD_INTERACTION` | 3 seconds | Space-walk backward |
+| 61 | `SNIFF_LEFT_INTERACTION` | 3 seconds | Sniff left turn |
+| 62 | `SNIFF_RIGHT_INTERACTION` | 3 seconds | Sniff right turn |
+| 63 | `SNIFF_STEP_INTERACTION` | 3 seconds | Sniff step in place |
 
 Example:
 
@@ -95,11 +105,6 @@ Normal actions do not accept an action parameter.
 | 26 | `TOUCH_GROUND_RIGHT` | Touch ground with right paw |
 | 27 | `TOUCH_GROUND_LEFT` | Touch ground with left paw |
 | 28 | `PLAY_DEAD` | Play dead |
-| 34 | `LOW_FORWARD_AND_BACKWARD_INTERACTION` | Low posture forward/backward movement |
-| 35 | `LOW_FORWARD_INTERACTION` | Low posture forward movement |
-| 36 | `LOW_BACKWARD_INTERACTION` | Low posture backward movement |
-| 37 | `LOW_LEFT_INTERACTION` | Low posture left turn |
-| 38 | `LOW_RIGHT_INTERACTION` | Low posture right turn |
 | 39 | `STOP_INTERACTION` | Stop interaction motion |
 | 40 | `UP_AND_DOWN_FOR_TEST` | Up-and-down test motion |
 | 41 | `ROLLOVER_RECOVERY_RIGHT` | Recover from right-side rollover |
@@ -114,8 +119,3 @@ Normal actions do not accept an action parameter.
 | 56 | `LAZY_PAT_PAT` | Lazy pat-pat motion |
 | 57 | `CHEEKY_PAW` | Cheeky paw motion |
 | 58 | `WHINING` | Whining motion |
-| 59 | `SNIFF_FORWARD_INTERACTION` | Sniff forward |
-| 60 | `SPACE_BACKWARD_INTERACTION` | Space-walk backward |
-| 61 | `SNIFF_LEFT_INTERACTION` | Sniff left turn |
-| 62 | `SNIFF_RIGHT_INTERACTION` | Sniff right turn |
-| 63 | `SNIFF_STEP_INTERACTION` | Sniff step in place |
