@@ -1,4 +1,4 @@
-# Gogobot EDU SDK
+﻿# Gogobot EDU SDK
 
 [English](README.md) | 中文
 
@@ -14,15 +14,16 @@
 - 动作、耳朵、表情、提示音和方向运动控制。
 - 通过 BLE `ae04` 通知读取 IMU / TOF 传感器数据。
 - 通过 Dev PC WebSocket 在局域网接收传感器 JSON 和双向 PCM 音频。
+- WebSocket 控制 action、ear、expression、audio、特殊状态检测、movement 和 sensor stream。
 - 面向高级动作编排的机身、足端、关节平滑调节 API。
-- 面向教师、学生、实验室和课程平台的示例脚本。
+- 面向教师、学生、实验室和课程平台的示例脚本与上位机工具。
 
 ## 环境要求
 
 - Python >= 3.9
 - 电脑支持蓝牙
 - `bleak >= 0.21`
-- 可选音频/局域网依赖：
+- 可选音频 / 局域网依赖：
   - `websockets`
   - `sounddevice`
   - `numpy`
@@ -79,10 +80,34 @@ with AiDog() as dog:
 
 详细说明见：[快速开始](docs/quick_start.zh_CN.md)。
 
+## WebSocket 控制
+
+固件启用 Dev PC WebSocket 后，可以由 PC 侧启动 WebSocket host，等待机器狗连入，再通过 `transport="ws"` 发送与 BLE 一致的控制指令。
+
+```python
+from aidog_sdk import AiDog, DevPcWebSocketHost, Action, Movement, Tone
+
+dog = AiDog()
+host = DevPcWebSocketHost(host="0.0.0.0", port=8766, dog=dog)
+host.start()
+host.wait_robot_connected()
+dog.attach_ws_control(host)
+
+dog.send_audio(Tone.JEEZ, transport="ws")
+dog.send_interaction(Action.SHAKE_HAND, transport="ws")
+dog.send_movement(Movement.FORWARD, duration_s=2, transport="ws")
+dog.stop_movement(transport="ws")
+```
+
+WS 上位机工具：
+
+```bash
+python tools/user_control_ws.py
+```
+
 ## 日志
 
-SDK 库代码使用 Python `logging` 输出信息，默认不主动配置日志处理器。
-需要查看连接信息时，可以在应用入口打开日志：
+SDK 使用 Python `logging` 输出库内部信息，默认不主动配置日志处理器。需要查看连接信息时，可以在应用入口打开日志：
 
 ```python
 import logging
@@ -96,16 +121,22 @@ logging.basicConfig(level=logging.INFO)
 
 | 文件 | 用途 | 风险等级 |
 |---|---|---|
-| `examples/01_connection/scan_and_connect.py` | 扫描、列出设备、按地址连接 | 低 |
-| `examples/02_actions/basic_actions.py` | 执行一个高级动作 | 中 |
-| `examples/02_actions/ears_expressions_audio.py` | 耳朵、表情、提示音 | 低/中 |
-| `examples/03_movement/directional_move.py` | 方向运动 | 中 |
-| `examples/04_sensors/imu_ble_read.py` | 通过 BLE `ae04` 订阅 IMU JSON | 低 |
-| `examples/04_sensors/tof_ble_read.py` | 通过 BLE `ae04` 订阅 TOF JSON | 低 |
-| `examples/04_sensors/imu_ws_lan_read.py` | 通过局域网 WebSocket 接收 IMU | 低 |
-| `examples/04_sensors/tof_ws_lan_read.py` | 通过局域网 WebSocket 接收 TOF | 低 |
+| `examples/01_connection/bluetooth/ble_scan_and_connect.py` | 扫描、列出设备、连接机器狗 | 低 |
+| `examples/02_actions/bluetooth/ble_basic_actions.py` | 执行一个高层动作 | 中 |
+| `examples/02_actions/bluetooth/ble_ears_expressions_audio.py` | 耳朵、表情、提示音 | 低/中 |
+| `examples/03_movement/bluetooth/ble_directional_move.py` | 方向运动 | 中 |
+| `examples/04_sensors/bluetooth/ble_imu_read.py` | 通过 BLE `ae04` 订阅 IMU JSON | 低 |
+| `examples/04_sensors/bluetooth/ble_tof_read.py` | 通过 BLE `ae04` 订阅 TOF JSON | 低 |
+| `examples/01_connection/websocket/ws_connection_test.py` | 等待机器狗连接 PC WebSocket host | 低 |
+| `examples/02_actions/websocket/ws_ears_expressions_audio.py` | 通过 WebSocket 控制耳朵、表情、音效和特殊状态检测 | 低/中 |
+| `examples/02_actions/websocket/ws_basic_actions.py` | 通过 WebSocket 执行动作 | 中 |
+| `examples/03_movement/websocket/ws_directional_move.py` | 通过 WebSocket 执行方向运动 | 中 |
+| `examples/04_sensors/websocket/ws_imu_lan_read.py` | 通过局域网 WebSocket 接收 IMU | 低 |
+| `examples/04_sensors/websocket/ws_tof_lan_read.py` | 通过局域网 WebSocket 接收 TOF | 低 |
 | `examples/05_audio/bidirectional_pcm_ws_host.py` | 双向 PCM WebSocket 上位机 | 低 |
-| `examples/05_audio/set_volume.py` | 通过 BLE 设置扬声器音量 | 低 |
+| `tools/set_volume.py` | 通过 BLE 设置扬声器音量 | 低 |
+| `tools/user_control_ble.py` | BLE 图形上位机 | 中 |
+| `tools/user_control_ws.py` | WebSocket 图形上位机 | 中 |
 | `examples/06_robot_adjust/safe_pose_adjust.py` | 机身 / 足端 / 关节平滑调节 | 高 |
 
 完整示例索引见：[示例说明](examples/README.md)。
@@ -113,6 +144,7 @@ logging.basicConfig(level=logging.INFO)
 ## 文档
 
 - [快速开始](docs/quick_start.zh_CN.md)
+- [演示视频](docs/demo_videos.md)
 - [BLE 连接说明](docs/connection_ble.md)
 - [API 参考](docs/api_reference.md)
 - [动作参数类型](docs/action_parameter_types.md)
@@ -126,13 +158,13 @@ logging.basicConfig(level=logging.INFO)
 
 ```text
 aidog_sdk/
-├─ aidog_sdk/                 # Python SDK 包
-├─ examples/                  # 可运行的 EDU 示例
-├─ tools/                     # 工具脚本
-├─ docs/                      # 用户、协议、安全和素材文档
-├─ README.md                  # 英文入口
-├─ README.zh_CN.md            # 中文入口
-└─ pyproject.toml             # Python 打包元数据
+├── aidog_sdk/                 # Python SDK 包
+├── examples/                  # 可运行的 EDU 示例
+├── tools/                     # 工具脚本和上位机
+├── docs/                      # 用户、协议、安全和素材文档
+├── README.md                  # 英文入口
+├── README.zh_CN.md            # 中文入口
+└── pyproject.toml             # Python 打包元数据
 ```
 
 ## License

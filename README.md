@@ -96,14 +96,14 @@ Use `logging.DEBUG` when troubleshooting BLE discovery and notification setup.
 
 | File | Purpose | Risk |
 |---|---|---|
-| `examples/01_connection/scan_and_connect.py` | Scan, list devices, connect by address | Low |
-| `examples/02_actions/basic_actions.py` | Run one high-level action | Medium |
-| `examples/02_actions/ears_expressions_audio.py` | Ears, expressions, tones | Low/Medium |
-| `examples/03_movement/directional_move.py` | Directional movement | Medium |
-| `examples/04_sensors/imu_ble_read.py` | Subscribe to IMU JSON over BLE `ae04` | Low |
-| `examples/04_sensors/tof_ble_read.py` | Subscribe to TOF JSON over BLE `ae04` | Low |
-| `examples/04_sensors/imu_ws_lan_read.py` | IMU over LAN via Dev PC WebSocket | Low |
-| `examples/04_sensors/tof_ws_lan_read.py` | TOF over LAN via Dev PC WebSocket | Low |
+| `examples/01_connection/bluetooth/ble_scan_and_connect.py` | Scan, list devices, connect by address | Low |
+| `examples/02_actions/bluetooth/ble_basic_actions.py` | Run one high-level action | Medium |
+| `examples/02_actions/bluetooth/ble_ears_expressions_audio.py` | Ears, expressions, tones | Low/Medium |
+| `examples/03_movement/bluetooth/ble_directional_move.py` | Directional movement | Medium |
+| `examples/04_sensors/bluetooth/ble_imu_read.py` | Subscribe to IMU JSON over BLE `ae04` | Low |
+| `examples/04_sensors/bluetooth/ble_tof_read.py` | Subscribe to TOF JSON over BLE `ae04` | Low |
+| `examples/04_sensors/websocket/ws_imu_lan_read.py` | IMU over LAN via Dev PC WebSocket | Low |
+| `examples/04_sensors/websocket/ws_tof_lan_read.py` | TOF over LAN via Dev PC WebSocket | Low |
 | `examples/05_audio/bidirectional_pcm_ws_host.py` | Bidirectional PCM WebSocket host | Low |
 | `examples/05_audio/set_volume.py` | Set speaker volume over BLE | Low |
 | `examples/06_robot_adjust/safe_pose_adjust.py` | Smooth pose / foot / joint adjustment | High |

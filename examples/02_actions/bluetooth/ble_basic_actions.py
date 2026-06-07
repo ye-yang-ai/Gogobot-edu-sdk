@@ -7,10 +7,10 @@ Risk level:
 Dependencies:
     pip install -e .
 Run:
-    python examples/02_actions/basic_actions.py
-    python examples/02_actions/basic_actions.py --address AA:BB:CC:DD:EE:FF --action shake_hand
-    python examples/02_actions/basic_actions.py --address AA:BB:CC:DD:EE:FF --action turn_left_angle --angle 90
-    python examples/02_actions/basic_actions.py --address AA:BB:CC:DD:EE:FF --action turn_right_angle --angle 180
+    python examples/02_actions/bluetooth/ble_basic_actions.py
+    python examples/02_actions/bluetooth/ble_basic_actions.py --address AA:BB:CC:DD:EE:FF --action shake_hand
+    python examples/02_actions/bluetooth/ble_basic_actions.py --address AA:BB:CC:DD:EE:FF --action turn_left_angle --angle 90
+    python examples/02_actions/bluetooth/ble_basic_actions.py --address AA:BB:CC:DD:EE:FF --action turn_right_angle --angle 180
 Expected result:
     The robot performs the requested action and prints completion status.
 Exit:
@@ -23,7 +23,7 @@ import argparse
 import sys
 from pathlib import Path
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
+_REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 

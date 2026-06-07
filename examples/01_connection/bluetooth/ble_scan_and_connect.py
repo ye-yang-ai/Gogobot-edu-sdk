@@ -8,9 +8,9 @@ Risk level:
 Dependencies:
     pip install -e .
 Run:
-    python examples/01_connection/scan_and_connect.py
-    python examples/01_connection/scan_and_connect.py --name-prefix Changba-Ai-Dog
-    python examples/01_connection/scan_and_connect.py --address AA:BB:CC:DD:EE:FF
+    python examples/01_connection/bluetooth/ble_scan_and_connect.py
+    python examples/01_connection/bluetooth/ble_scan_and_connect.py --name-prefix Changba-Ai-Dog
+    python examples/01_connection/bluetooth/ble_scan_and_connect.py --address AA:BB:CC:DD:EE:FF
 Expected result:
     The terminal lists nearby devices and reports a successful BLE connection.
 Exit:
@@ -23,7 +23,7 @@ import argparse
 import sys
 from pathlib import Path
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
+_REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 

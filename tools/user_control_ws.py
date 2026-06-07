@@ -1,7 +1,7 @@
-"""Tkinter upper-computer control panel for Changba AI-Dog.
+"""Tkinter WebSocket upper-computer control panel for Changba AI-Dog.
 
 This script intentionally stays outside the SDK boundary: it imports the public
-``aidog_sdk`` APIs and does not modify or duplicate the SDK BLE transport.
+``aidog_sdk`` APIs and reuses the same control layout as ``user_control_ble.py``.
 """
 
 from __future__ import annotations
@@ -12,7 +12,6 @@ import sys
 import threading
 import time
 from collections import deque
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Deque, Dict, Iterable, List, Optional, Tuple
 
@@ -26,6 +25,7 @@ if str(_REPO_ROOT) not in sys.path:
 from aidog_sdk import (  # noqa: E402
     AiDog,
     Action,
+    DevPcWebSocketHost,
     EarAction,
     ExpressionAction,
     Movement,
@@ -34,59 +34,53 @@ from aidog_sdk import (  # noqa: E402
 )
 
 
-DEFAULT_NAME_PREFIX = "Changba-Ai-Dog"
+DEFAULT_BIND = "0.0.0.0"
+DEFAULT_PORT = 8766
+DEFAULT_CONNECT_TIMEOUT_S = 60.0
 PLOT_HISTORY_SECONDS = 12.0
 PLOT_REFRESH_MS = 100
 UI_POLL_MS = 80
 JOYSTICK_DEADZONE = 18
-EAR_SEND_INTERVAL_MS = 120
+EAR_SEND_INTERVAL_MS = 60
+EAR_SEND_MIN_DELTA = 2
+EAR_REPEAT_AFTER_RELEASE_MS = 1000
 HIDDEN_INTERACTION_ACTION_IDS = {6, 47, 48, 49, 50, 51}
 HIDDEN_EAR_ACTION_IDS = {15}
 VOLUME_LEVELS = (0, 1, 2, 3, 4)
 
 
-@dataclass(frozen=True)
-class DeviceInfo:
-    name: str
-    address: str
-
-    @property
-    def label(self) -> str:
-        return f"{self.name} [{self.address}]"
-
-
 class RobotController:
-    """Small thread-aware adapter around the public AiDog API."""
+    """Small thread-aware adapter around the public AiDog WebSocket API."""
 
     def __init__(self, log_queue: "queue.Queue[str]") -> None:
         self.log_queue = log_queue
         self.dog = AiDog(imu_only_notify=True)
+        self.host: Optional[DevPcWebSocketHost] = None
         self._lock = threading.RLock()
-        self._latest_devices: List[DeviceInfo] = []
         self._closed = False
-
-    @property
-    def latest_devices(self) -> List[DeviceInfo]:
-        return list(self._latest_devices)
 
     def log(self, message: str) -> None:
         self.log_queue.put(message)
 
-    def scan(self, name_prefix: str) -> List[DeviceInfo]:
+    def connect(self, bind: str, port: int, timeout_s: float) -> str:
         with self._lock:
-            raw = self.dog.scan(name_prefix)
-        self._latest_devices = [DeviceInfo(name, address) for name, address in raw]
-        return self.latest_devices
-
-    def connect(self, address: str) -> None:
-        with self._lock:
-            self.dog.connect(address=address)
+            self.disconnect()
+            self.host = DevPcWebSocketHost(host=bind, port=port, dog=self.dog)
+            self.dog.attach_ws_control(self.host)
+            self.host.start()
+        if not self.host.wait_robot_connected(timeout_s=timeout_s):
+            with self._lock:
+                self.host.stop()
+                self.host = None
+            raise TimeoutError(f"等待机器狗连接 ws://{bind}:{port} 超时")
+        return f"ws://{bind}:{port}"
 
     def disconnect(self) -> None:
         with self._lock:
-            if self.dog.is_connected:
+            if self.host is not None:
                 self._disable_sensor_streams_unlocked()
-                self.dog.disconnect()
+                self.host.stop()
+                self.host = None
 
     def shutdown(self) -> None:
         if self._closed:
@@ -94,60 +88,61 @@ class RobotController:
         self._closed = True
         with self._lock:
             try:
-                if self.dog.is_connected:
+                if self.host is not None:
                     self._disable_sensor_streams_unlocked()
-                    self.dog.disconnect()
+                    self.host.stop()
+                    self.host = None
             except Exception:
                 pass
             self.dog.shutdown()
 
     def is_connected(self) -> bool:
         with self._lock:
-            return bool(self.dog.is_connected)
+            return bool(self.host is not None and self.host.is_robot_connected)
 
     def start_movement(self, movement: Movement) -> None:
         with self._lock:
-            self.dog.start_movement(movement)
+            self.dog.start_movement(movement, transport="ws")
 
     def stop_movement(self) -> None:
         with self._lock:
-            self.dog.stop_movement()
+            self.dog.stop_movement(transport="ws")
 
     def send_interaction(self, action: Action) -> None:
         with self._lock:
-            self.dog.send_interaction(int(action))
+            self.dog.send_interaction(int(action), transport="ws")
 
     def send_ear(self, action: EarAction) -> None:
         with self._lock:
-            self.dog.send_ear(action)
+            self.dog.send_ear(action, transport="ws")
 
     def send_ear_percentage(self, percentage: int) -> None:
         with self._lock:
-            self.dog.send_ear_percentage(percentage)
+            self.dog.send_ear_percentage(percentage, transport="ws")
 
     def set_special_detection(self, enabled: bool) -> None:
         with self._lock:
-            self.dog.set_special_detection(enabled)
+            self.dog.set_special_detection(enabled, transport="ws")
 
     def send_expression(self, expression: ExpressionAction) -> None:
         with self._lock:
-            self.dog.send_expression(expression)
+            self.dog.send_expression(expression, transport="ws")
 
     def send_audio(self, tone: int) -> None:
         with self._lock:
-            self.dog.send_audio(tone)
+            self.dog.send_audio(tone, transport="ws")
 
     def set_volume(self, volume: int) -> None:
         with self._lock:
-            self.dog.set_volume(volume)
+            self.dog.set_volume(volume, transport="ws")
 
     def request_imu_stream(self, enabled: bool, hz: int) -> None:
         with self._lock:
-            self.dog.request_imu_stream(enabled, hz=hz)
+            self.dog.request_imu_stream(enabled, hz=hz, transport="ws")
 
     def request_tof_stream(self, enabled: bool, hz: int) -> None:
         with self._lock:
-            self.dog.request_tof_stream(enabled, hz=hz)
+            self.dog.request_tof_stream(enabled, hz=hz, transport="ws")
 
     def add_imu_listener(self, callback: Callable[[Dict[str, object]], None]) -> None:
         self.dog.add_imu_listener(callback)
@@ -163,11 +158,11 @@ class RobotController:
 
     def _disable_sensor_streams_unlocked(self) -> None:
         try:
-            self.dog.request_imu_stream(False)
+            self.dog.request_imu_stream(False, transport="ws")
         except Exception:
             pass
         try:
-            self.dog.request_tof_stream(False)
+            self.dog.request_tof_stream(False, transport="ws")
         except Exception:
             pass
 
@@ -326,12 +321,14 @@ class UserControlApp:
         self.worker_thread = threading.Thread(target=self._worker_loop, daemon=True, name="user-control-worker")
         self.worker_thread.start()
 
-        self.devices: List[DeviceInfo] = []
-        self.connected_device: Optional[DeviceInfo] = None
+        self.connected_url: Optional[str] = None
         self.active_movement: Optional[Movement] = None
         self._ear_send_after_id: Optional[str] = None
         self._ear_last_send_ms = 0
         self._ear_pending_percentage: Optional[int] = None
+        self._ear_last_sent_percentage: Optional[int] = None
+        self._ear_send_seq = 0
+        self._ear_repeat_until_ms = 0
         self.imu_enabled = tk.BooleanVar(value=False)
         self.tof_enabled = tk.BooleanVar(value=False)
         self.special_detection_enabled = tk.BooleanVar(value=False)
@@ -377,23 +374,25 @@ class UserControlApp:
     def _build_connection_bar(self) -> None:
         bar = ttk.Frame(self.root, padding=(8, 8, 8, 6))
         bar.grid(row=0, column=0, sticky="ew")
-        bar.columnconfigure(3, weight=1)
+        bar.columnconfigure(7, weight=1)
 
-        ttk.Label(bar, text="设备前缀").grid(row=0, column=0, sticky=tk.W, padx=(0, 6))
-        self.prefix_var = tk.StringVar(value=DEFAULT_NAME_PREFIX)
-        ttk.Entry(bar, textvariable=self.prefix_var, width=20).grid(row=0, column=1, sticky=tk.W, padx=(0, 8))
+        ttk.Label(bar, text="监听地址").grid(row=0, column=0, sticky=tk.W, padx=(0, 6))
+        self.bind_var = tk.StringVar(value=DEFAULT_BIND)
+        ttk.Entry(bar, textvariable=self.bind_var, width=16).grid(row=0, column=1, sticky=tk.W, padx=(0, 8))
 
-        self.scan_btn = ttk.Button(bar, text="扫描", command=self.scan_devices, width=8)
-        self.scan_btn.grid(row=0, column=2, sticky=tk.W, padx=(0, 8))
+        ttk.Label(bar, text="端口").grid(row=0, column=2, sticky=tk.W, padx=(0, 6))
+        self.port_var = tk.IntVar(value=DEFAULT_PORT)
+        ttk.Spinbox(bar, from_=1, to=65535, textvariable=self.port_var, width=7).grid(row=0, column=3, sticky=tk.W, padx=(0, 8))
 
-        self.device_combo = ttk.Combobox(bar, values=[], state="readonly", width=42)
-        self.device_combo.grid(row=0, column=3, sticky="ew", padx=(0, 8))
+        ttk.Label(bar, text="等待秒数").grid(row=0, column=4, sticky=tk.W, padx=(0, 6))
+        self.timeout_var = tk.DoubleVar(value=DEFAULT_CONNECT_TIMEOUT_S)
+        ttk.Spinbox(bar, from_=1, to=600, textvariable=self.timeout_var, width=7).grid(row=0, column=5, sticky=tk.W, padx=(0, 8))
 
-        self.connect_btn = ttk.Button(bar, text="连接", command=self.toggle_connection, width=10)
-        self.connect_btn.grid(row=0, column=4, sticky=tk.W, padx=(0, 8))
+        self.connect_btn = ttk.Button(bar, text="连接", command=self.toggle_connection, width=12)
+        self.connect_btn.grid(row=0, column=6, sticky=tk.W, padx=(0, 8))
 
         self.status_var = tk.StringVar(value="状态: 未连接")
-        ttk.Label(bar, textvariable=self.status_var, anchor=tk.W).grid(row=0, column=5, sticky="ew")
+        ttk.Label(bar, textvariable=self.status_var, anchor=tk.W).grid(row=0, column=7, sticky="ew")
 
     def _build_motion_page(self) -> None:
         self.motion_page.columnconfigure(0, weight=0)
@@ -452,6 +451,7 @@ class UserControlApp:
         ttk.Label(slider_row, text="位置").grid(row=0, column=0, padx=(0, 8))
         ear_scale = ttk.Scale(slider_row, from_=0, to=100, orient=tk.HORIZONTAL, command=self._on_ear_scale)
         ear_scale.grid(row=0, column=1, sticky="ew")
+        ear_scale.bind("<ButtonRelease-1>", self._on_ear_scale_release)
         ttk.Label(slider_row, textvariable=self.ear_percent_label, width=5, anchor=tk.E).grid(row=0, column=2, padx=(8, 0))
 
         ttk.Label(self.ear_page, text="耳朵动作", font=("Microsoft YaHei UI", 11, "bold")).grid(row=2, column=0, sticky=tk.W, pady=(0, 8))
@@ -568,55 +568,49 @@ class UserControlApp:
     def _submit(self, label: str, func: Callable[[], object], on_success: Optional[Callable[[object], None]] = None) -> None:
         self.worker_queue.put((label, func, on_success))
 
-    def scan_devices(self) -> None:
-        prefix = self.prefix_var.get().strip() or DEFAULT_NAME_PREFIX
-        self.status_var.set("状态: 扫描中...")
-        self.scan_btn.configure(state=tk.DISABLED)
-        self._submit("扫描设备", lambda: self.controller.scan(prefix), self._on_scan_success)
-
-    def _on_scan_success(self, result: object) -> None:
-        self.devices = list(result) if isinstance(result, list) else []
-        labels = [device.label for device in self.devices]
-        self.device_combo.configure(values=labels)
-        if labels:
-            self.device_combo.current(0)
-            self.status_var.set(f"状态: 找到 {len(labels)} 个设备")
-        else:
-            self.status_var.set("状态: 未找到设备")
-        self.scan_btn.configure(state=tk.NORMAL)
-
     def toggle_connection(self) -> None:
-        if self.connected_device:
+        if self.connected_url:
             self.status_var.set("状态: 正在断开...")
             self.connect_btn.configure(state=tk.DISABLED)
-            self._submit("断开连接", self.controller.disconnect, self._on_disconnect_success)
+            self._submit("断开 WebSocket", self.controller.disconnect, self._on_disconnect_success)
             return
 
-        index = self.device_combo.current()
-        if index < 0 or index >= len(self.devices):
-            self._append_log("请先扫描并选择设备。")
-            return
-        device = self.devices[index]
-        self.status_var.set(f"状态: 正在连接 {device.name}...")
+        bind = self.bind_var.get().strip() or DEFAULT_BIND
+        try:
+            port = max(1, min(65535, int(self.port_var.get())))
+        except Exception:
+            port = DEFAULT_PORT
+            self.port_var.set(port)
+        try:
+            timeout_s = max(1.0, float(self.timeout_var.get()))
+        except Exception:
+            timeout_s = DEFAULT_CONNECT_TIMEOUT_S
+            self.timeout_var.set(timeout_s)
+
+        self.status_var.set(f"状态: 监听 ws://{bind}:{port}，等待机器狗连接...")
         self.connect_btn.configure(state=tk.DISABLED)
-        self._submit("连接设备", lambda: self.controller.connect(device.address), lambda _result: self._on_connect_success(device))
+        self._submit(
+            "等待 WebSocket 连接",
+            lambda: self.controller.connect(bind, port, timeout_s),
+            self._on_connect_success,
+        )
 
-    def _on_connect_success(self, device: DeviceInfo) -> None:
-        self.connected_device = device
-        self.status_var.set(f"状态: 已连接 {device.name}")
+    def _on_connect_success(self, result: object) -> None:
+        self.connected_url = str(result)
+        self.status_var.set(f"状态: 机器狗已连接 {self.connected_url}")
         self.connect_btn.configure(text="断开", state=tk.NORMAL)
 
     def _on_disconnect_success(self, _result: object) -> None:
-        self.connected_device = None
+        self.connected_url = None
         self.active_movement = None
         self.imu_enabled.set(False)
         self.tof_enabled.set(False)
         self.status_var.set("状态: 已断开")
-        self.connect_btn.configure(text="连接", state=tk.NORMAL)
+        self.connect_btn.configure(text="等待连接", state=tk.NORMAL)
 
     def _require_connection(self) -> bool:
-        if not self.connected_device:
-            self._append_log("当前未连接设备。")
+        if not self.connected_url or not self.controller.is_connected():
+            self._append_log("当前未连接机器狗 WebSocket。")
             return False
         return True
 
@@ -680,35 +674,60 @@ class UserControlApp:
 
     def _send_ear(self, action: object) -> None:
         assert isinstance(action, EarAction)
+        self._ear_repeat_until_ms = 0
+        self._ear_pending_percentage = None
+        if self._ear_send_after_id is not None:
+            self.root.after_cancel(self._ear_send_after_id)
+            self._ear_send_after_id = None
         self._send_command(f"耳朵动作: {action.name}", lambda: self.controller.send_ear(action))
 
     def _on_ear_scale(self, value: str) -> None:
         percentage = int(round(float(value)))
         self.ear_percent_var.set(percentage)
         self.ear_percent_label.set(f"{percentage}%")
-        self._queue_ear_percentage(percentage)
+        self._queue_ear_percentage(percentage, force=True)
 
-    def _queue_ear_percentage(self, percentage: int) -> None:
+    def _on_ear_scale_release(self, _event: object) -> None:
+        percentage = max(0, min(100, int(self.ear_percent_var.get())))
+        self._ear_repeat_until_ms = int(time.monotonic() * 1000) + EAR_REPEAT_AFTER_RELEASE_MS
+        self._queue_ear_percentage(percentage, force=True)
+
+    def _queue_ear_percentage(self, percentage: int, *, force: bool = False) -> None:
         self._ear_pending_percentage = max(0, min(100, int(percentage)))
         now_ms = int(time.monotonic() * 1000)
         elapsed_ms = now_ms - self._ear_last_send_ms
         if elapsed_ms >= EAR_SEND_INTERVAL_MS:
-            self._send_current_ear_percentage()
+            self._send_current_ear_percentage(force=force)
             return
         if self._ear_send_after_id is None:
             self._ear_send_after_id = self.root.after(
                 EAR_SEND_INTERVAL_MS - elapsed_ms,
-                self._send_current_ear_percentage,
+                lambda: self._send_current_ear_percentage(force=force),
             )
 
-    def _send_current_ear_percentage(self) -> None:
+    def _send_current_ear_percentage(self, *, force: bool = False) -> None:
         self._ear_send_after_id = None
         if self._ear_pending_percentage is None:
             return
         percentage = self._ear_pending_percentage
         self._ear_pending_percentage = None
+        if self._ear_last_sent_percentage is not None:
+            delta = abs(percentage - self._ear_last_sent_percentage)
+            if delta < EAR_SEND_MIN_DELTA and not force:
+                return
         self._ear_last_send_ms = int(time.monotonic() * 1000)
-        self._send_command(f"耳朵位置: {percentage}%", lambda: self.controller.send_ear_percentage(percentage))
+        self._ear_last_sent_percentage = percentage
+        self._ear_send_seq += 1
+        seq = self._ear_send_seq
+        self._send_command(f"耳朵位置: {percentage}%", lambda: self._send_latest_ear_percentage(seq, percentage))
+        if self._ear_repeat_until_ms > self._ear_last_send_ms:
+            self._ear_pending_percentage = percentage
+            if self._ear_send_after_id is None:
+                self._ear_send_after_id = self.root.after(EAR_SEND_INTERVAL_MS, lambda: self._send_current_ear_percentage(force=True))
+
+    def _send_latest_ear_percentage(self, seq: int, percentage: int) -> None:
+        if seq == self._ear_send_seq:
+            self.controller.send_ear_percentage(percentage)
 
     def _on_special_detection_toggle(self) -> None:
         enabled = bool(self.special_detection_enabled.get())
@@ -802,6 +821,13 @@ class UserControlApp:
         )
 
     def _poll_queues(self) -> None:
+        if self.connected_url and not self.controller.is_connected():
+            self.connected_url = None
+            self.active_movement = None
+            self.imu_enabled.set(False)
+            self.tof_enabled.set(False)
+            self.status_var.set("状态: WebSocket 已断开")
+            self.connect_btn.configure(text="等待连接", state=tk.NORMAL)
         self._drain_ui_queue()
         self._drain_log_queue()
         self.root.after(UI_POLL_MS, self._poll_queues)
@@ -817,23 +843,19 @@ class UserControlApp:
                 self._append_log(f"{label}: 完成")
                 if on_success:
                     on_success(result)
-                if label not in ("扫描设备", "连接设备", "断开连接"):
+                if label not in ("等待 WebSocket 连接", "断开 WebSocket"):
                     self._restore_connection_buttons()
             elif kind == "task_error":
                 label, exc = payload  # type: ignore[misc]
                 self._append_log(f"{label}: 失败 - {exc}")
-                if label == "扫描设备":
-                    self.scan_btn.configure(state=tk.NORMAL)
-                    self.status_var.set("状态: 扫描失败")
-                elif label == "连接设备":
+                if label == "等待 WebSocket 连接":
                     self.connect_btn.configure(state=tk.NORMAL)
-                    self.status_var.set("状态: 连接失败")
-                elif label == "断开连接":
+                    self.status_var.set("状态: WebSocket 连接失败")
+                elif label == "断开 WebSocket":
                     self.connect_btn.configure(state=tk.NORMAL)
-                    self.status_var.set("状态: 断开失败")
+                    self.status_var.set("状态: WebSocket 断开失败")
 
     def _restore_connection_buttons(self) -> None:
-        self.scan_btn.configure(state=tk.NORMAL)
         self.connect_btn.configure(state=tk.NORMAL)
 
     def _drain_log_queue(self) -> None:

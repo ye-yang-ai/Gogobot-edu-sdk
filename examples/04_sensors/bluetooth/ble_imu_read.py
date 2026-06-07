@@ -7,8 +7,8 @@ Risk level:
 Dependencies:
     pip install -e .
 Run:
-    python examples/04_sensors/imu_ble_read.py --hz 20
-    python examples/04_sensors/imu_ble_read.py --mode raw --raw both
+    python examples/04_sensors/bluetooth/ble_imu_read.py --hz 20
+    python examples/04_sensors/bluetooth/ble_imu_read.py --mode raw --raw both
 Expected result:
     The terminal prints IMU data until stopped.
 Exit:
@@ -23,7 +23,7 @@ import time
 from pathlib import Path
 from typing import Callable, Dict
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
+_REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 

@@ -9,11 +9,11 @@ Dependencies:
 Firmware:
     DEV_PC_AUDIO_WS_ENABLE=1 and DEV_PC_AUDIO_WS_URL points to this PC.
 Run:
-    python examples/04_sensors/imu_ws_lan_read.py --bind 0.0.0.0 --port 8766
-    python examples/04_sensors/imu_ws_lan_read.py --ble --hz 40
-    python examples/04_sensors/imu_ws_lan_read.py --mode raw --raw both
-    python examples/04_sensors/imu_ws_lan_read.py --mode raw --raw accel
-    python examples/04_sensors/imu_ws_lan_read.py --mode raw --raw gyro
+    python examples/04_sensors/websocket/ws_imu_lan_read.py --bind 0.0.0.0 --port 8766
+    python examples/04_sensors/websocket/ws_imu_lan_read.py --ble --hz 40
+    python examples/04_sensors/websocket/ws_imu_lan_read.py --mode raw --raw both
+    python examples/04_sensors/websocket/ws_imu_lan_read.py --mode raw --raw accel
+    python examples/04_sensors/websocket/ws_imu_lan_read.py --mode raw --raw gyro
 Expected result:
     The terminal prints LAN IMU data when the robot connects.
 Exit:
@@ -30,7 +30,7 @@ import time
 from pathlib import Path
 from typing import Callable, Dict
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
+_REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 

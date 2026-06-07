@@ -7,7 +7,7 @@ Risk level:
 Dependencies:
     pip install -e .
 Run:
-    python examples/02_actions/choreography.py --yes
+    python examples/02_actions/bluetooth/ble_choreography.py --yes
 Expected result:
     The robot performs a short scripted show.
 Exit:
@@ -21,7 +21,7 @@ import sys
 import time
 from pathlib import Path
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
+_REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 

@@ -14,7 +14,7 @@ Check:
 
 On Windows, direct-address BLE connection can require the device to be present in the scanner cache. The SDK does a short pre-scan before connecting, but if it still fails:
 
-- Run `examples/01_connection/scan_and_connect.py` once.
+- Run `examples/01_connection/bluetooth/ble_scan_and_connect.py` once.
 - Reboot Bluetooth on the host.
 - Power cycle the robot.
 
