@@ -20,8 +20,9 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 
-GAME_ASSET_DIR = Path(__file__).with_name("icons")
-GAME_SCORE_DIR = Path(__file__).with_name("scores")
+GAME_ROOT = Path(__file__).resolve().parents[1]
+GAME_ASSET_DIR = GAME_ROOT / "icons"
+GAME_SCORE_DIR = GAME_ROOT / "scores"
 DEFAULT_SCORE_FILE = GAME_SCORE_DIR / "aidog_balance_ball_score.json"
 GOGO_LOGO_FILE = GAME_ASSET_DIR / "gogo_logo.png"
 GAME_WIDTH = 960
