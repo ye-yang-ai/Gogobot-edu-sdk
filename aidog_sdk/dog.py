@@ -155,6 +155,8 @@ class AiDog:
             self._ws_control_seq += 1
             command_id = f"dog-{int(mode) & 0xFF}-{self._ws_control_seq}"
             self._ws_control.send_control_raw(int(mode) & 0xFF, data, command_id=command_id)
+            if (int(mode) & 0xFF) == MODE_EAR and len(data) >= 2 and int(data[0]) == 14:
+                return
             wait_ack = getattr(self._ws_control, "wait_control_ack", None)
             if callable(wait_ack):
                 ack = wait_ack(command_id, timeout_s=1.2)

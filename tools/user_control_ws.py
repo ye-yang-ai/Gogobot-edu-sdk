@@ -41,7 +41,9 @@ PLOT_HISTORY_SECONDS = 12.0
 PLOT_REFRESH_MS = 100
 UI_POLL_MS = 80
 JOYSTICK_DEADZONE = 18
-EAR_SEND_INTERVAL_MS = 120
+EAR_SEND_INTERVAL_MS = 60
+EAR_SEND_MIN_DELTA = 2
+EAR_REPEAT_AFTER_RELEASE_MS = 1000
 HIDDEN_INTERACTION_ACTION_IDS = {6, 47, 48, 49, 50, 51}
 HIDDEN_EAR_ACTION_IDS = {15}
 VOLUME_LEVELS = (0, 1, 2, 3, 4)
@@ -324,6 +326,9 @@ class UserControlApp:
         self._ear_send_after_id: Optional[str] = None
         self._ear_last_send_ms = 0
         self._ear_pending_percentage: Optional[int] = None
+        self._ear_last_sent_percentage: Optional[int] = None
+        self._ear_send_seq = 0
+        self._ear_repeat_until_ms = 0
         self.imu_enabled = tk.BooleanVar(value=False)
         self.tof_enabled = tk.BooleanVar(value=False)
         self.special_detection_enabled = tk.BooleanVar(value=False)
@@ -446,6 +451,7 @@ class UserControlApp:
         ttk.Label(slider_row, text="位置").grid(row=0, column=0, padx=(0, 8))
         ear_scale = ttk.Scale(slider_row, from_=0, to=100, orient=tk.HORIZONTAL, command=self._on_ear_scale)
         ear_scale.grid(row=0, column=1, sticky="ew")
+        ear_scale.bind("<ButtonRelease-1>", self._on_ear_scale_release)
         ttk.Label(slider_row, textvariable=self.ear_percent_label, width=5, anchor=tk.E).grid(row=0, column=2, padx=(8, 0))
 
         ttk.Label(self.ear_page, text="耳朵动作", font=("Microsoft YaHei UI", 11, "bold")).grid(row=2, column=0, sticky=tk.W, pady=(0, 8))
@@ -668,35 +674,60 @@ class UserControlApp:
 
     def _send_ear(self, action: object) -> None:
         assert isinstance(action, EarAction)
+        self._ear_repeat_until_ms = 0
+        self._ear_pending_percentage = None
+        if self._ear_send_after_id is not None:
+            self.root.after_cancel(self._ear_send_after_id)
+            self._ear_send_after_id = None
         self._send_command(f"耳朵动作: {action.name}", lambda: self.controller.send_ear(action))
 
     def _on_ear_scale(self, value: str) -> None:
         percentage = int(round(float(value)))
         self.ear_percent_var.set(percentage)
         self.ear_percent_label.set(f"{percentage}%")
-        self._queue_ear_percentage(percentage)
+        self._queue_ear_percentage(percentage, force=True)
 
-    def _queue_ear_percentage(self, percentage: int) -> None:
+    def _on_ear_scale_release(self, _event: object) -> None:
+        percentage = max(0, min(100, int(self.ear_percent_var.get())))
+        self._ear_repeat_until_ms = int(time.monotonic() * 1000) + EAR_REPEAT_AFTER_RELEASE_MS
+        self._queue_ear_percentage(percentage, force=True)
+
+    def _queue_ear_percentage(self, percentage: int, *, force: bool = False) -> None:
         self._ear_pending_percentage = max(0, min(100, int(percentage)))
         now_ms = int(time.monotonic() * 1000)
         elapsed_ms = now_ms - self._ear_last_send_ms
         if elapsed_ms >= EAR_SEND_INTERVAL_MS:
-            self._send_current_ear_percentage()
+            self._send_current_ear_percentage(force=force)
             return
         if self._ear_send_after_id is None:
             self._ear_send_after_id = self.root.after(
                 EAR_SEND_INTERVAL_MS - elapsed_ms,
-                self._send_current_ear_percentage,
+                lambda: self._send_current_ear_percentage(force=force),
             )
 
-    def _send_current_ear_percentage(self) -> None:
+    def _send_current_ear_percentage(self, *, force: bool = False) -> None:
         self._ear_send_after_id = None
         if self._ear_pending_percentage is None:
             return
         percentage = self._ear_pending_percentage
         self._ear_pending_percentage = None
+        if self._ear_last_sent_percentage is not None:
+            delta = abs(percentage - self._ear_last_sent_percentage)
+            if delta < EAR_SEND_MIN_DELTA and not force:
+                return
         self._ear_last_send_ms = int(time.monotonic() * 1000)
-        self._send_command(f"耳朵位置: {percentage}%", lambda: self.controller.send_ear_percentage(percentage))
+        self._ear_last_sent_percentage = percentage
+        self._ear_send_seq += 1
+        seq = self._ear_send_seq
+        self._send_command(f"耳朵位置: {percentage}%", lambda: self._send_latest_ear_percentage(seq, percentage))
+        if self._ear_repeat_until_ms > self._ear_last_send_ms:
+            self._ear_pending_percentage = percentage
+            if self._ear_send_after_id is None:
+                self._ear_send_after_id = self.root.after(EAR_SEND_INTERVAL_MS, lambda: self._send_current_ear_percentage(force=True))
+
+    def _send_latest_ear_percentage(self, seq: int, percentage: int) -> None:
+        if seq == self._ear_send_seq:
+            self.controller.send_ear_percentage(percentage)
 
     def _on_special_detection_toggle(self) -> None:
         enabled = bool(self.special_detection_enabled.get())
