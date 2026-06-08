@@ -240,7 +240,7 @@ class SpaceFighterGame:
                 self.spawn_timer_s += dt
                 if self.spawn_timer_s >= self.config.spawn_interval_s:
                     self._spawn_next_wave()
-            elif not self.enemies and self.wave >= self.config.waves_per_stage:
+            elif not self.enemies and self.wave >= self.config.waves_per_stage and not self._has_active_powerups():
                 self._enter_boss_warning()
 
         self._collide_player_bullets()
@@ -253,6 +253,9 @@ class SpaceFighterGame:
 
     def boss_active(self) -> bool:
         return self.state == BOSS and self.boss is not None and self.boss.active
+
+    def _has_active_powerups(self) -> bool:
+        return any(powerup.active for powerup in self.powerups)
 
     def _move_player(self, dt: float, move_x: float, move_y: float) -> None:
         cfg = self.config
@@ -279,7 +282,10 @@ class SpaceFighterGame:
             speed = self.config.bullet_speed
             vx = math.sin(angle) * speed
             vy = -math.cos(angle) * speed
-            self.player_bullets.append(Bullet(Vec2(center.x + offset_x, self.player.y + 8.0), Vec2(vx, vy), 1, "player"))
+            self.player_bullets.append(Bullet(Vec2(center.x + offset_x, self.player.y + 8.0), Vec2(vx, vy), self._player_bullet_damage(), "player"))
+
+    def _player_bullet_damage(self) -> int:
+        return 1 + max(0, self.stage - 1) // 2
 
     def _update_player_bullets(self, dt: float) -> None:
         for bullet in self.player_bullets:
@@ -365,7 +371,7 @@ class SpaceFighterGame:
                     enemy_hp,
                     score,
                     vx,
-                    vy + (self.stage - 1) * 10.0,
+                    vy * 0.90 + (self.stage - 1) * 8.0,
                     self._stage_fire_interval(fire_interval),
                     self._stage_fire_interval(fire_interval) * 0.65,
                 )
@@ -389,13 +395,12 @@ class SpaceFighterGame:
         self.state = BOSS_WARNING
         self.warning_timer_s = 0.0
         self.enemy_bullets = []
-        self.powerups = []
 
     def _spawn_boss(self) -> None:
         cfg = self.config
         w = 150.0
         h = 96.0
-        hp = 38 + (self.stage - 1) * 16
+        hp = 46 + (self.stage - 1) * 18
         self.boss = Enemy(
             BOSS_KIND,
             Rect((cfg.width - w) * 0.5, 118.0, w, h),
@@ -404,7 +409,7 @@ class SpaceFighterGame:
             500 + self.stage * 120,
             70.0 + (self.stage - 1) * 9.0,
             0.0,
-            max(0.48, 0.85 - (self.stage - 1) * 0.08),
+            max(0.62, 1.05 - (self.stage - 1) * 0.07),
             0.45,
         )
         self.state = BOSS
@@ -448,11 +453,11 @@ class SpaceFighterGame:
         if self.rng.random() > self.config.powerup_drop_chance:
             return
         roll = self.rng.random()
-        if roll < 0.45:
+        if roll < 0.30:
             kind = POWERUP_WEAPON
-        elif roll < 0.70:
+        elif roll < 0.60:
             kind = POWERUP_SHIELD
-        elif roll < 0.88:
+        elif roll < 0.80:
             kind = POWERUP_HEAL
         else:
             kind = POWERUP_BOMB
@@ -505,10 +510,9 @@ class SpaceFighterGame:
             elif powerup.kind == POWERUP_HEAL:
                 self.hp = min(self.config.hp_per_life, self.hp + self.config.heal_amount)
             elif powerup.kind == POWERUP_BOMB:
-                for enemy in self.enemies:
+                for enemy in list(self.enemies):
                     if enemy.active:
-                        enemy.active = False
-                        self.score += enemy.score
+                        self._destroy_enemy(enemy)
                 if self.boss is not None and self.boss.active:
                     self.boss.hp = max(1, self.boss.hp - 8)
                 self.enemy_bullets = []

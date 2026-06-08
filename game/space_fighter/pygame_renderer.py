@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import random
-from typing import Tuple
+from typing import Optional, Tuple
 
 from .core import (
     BOSS,
@@ -46,18 +46,26 @@ class PygameRenderer:
         self.score_font = pygame.font.SysFont("Segoe UI", 19, bold=True)
         self.title_font = pygame.font.SysFont("Segoe UI", 42, bold=True)
         self.stars = [(random.randrange(width), random.randrange(height), random.choice((1, 1, 1, 2))) for _ in range(46)]
+        self.keyboard_button_rect = pygame.Rect(0, 294, 132, 34)
+        self.aidog_button_rect = pygame.Rect(0, 294, 132, 34)
+        self.prepare_dog_button_rect = pygame.Rect(0, 352, 132, 28)
+        self.restart_ws_button_rect = pygame.Rect(14, 72, 92, 24)
+        self.recalibrate_button_rect = pygame.Rect(112, 72, 94, 24)
+        self.pressed_button: Optional[str] = None
+        self.feedback_message = ""
+        self.feedback_until_s = 0.0
         self.time_s = 0.0
 
     def tick(self, fps: int) -> None:
         self.clock.tick(int(fps))
         self.time_s += 1.0 / max(1, fps)
 
-    def draw(self, game: SpaceFighterGame) -> None:
+    def draw(self, game: SpaceFighterGame, input_mode: str = "keyboard", imu_status: str = "OFF") -> None:
         self._draw_background()
         if game.state == MENU:
-            self._draw_menu(game)
+            self._draw_menu(game, input_mode, imu_status)
         else:
-            self._draw_gameplay(game)
+            self._draw_gameplay(game, input_mode, imu_status)
         self.pygame.display.flip()
 
     def _draw_background(self) -> None:
@@ -73,7 +81,7 @@ class PygameRenderer:
             shade = 120 + radius * 48
             pg.draw.circle(self.screen, (shade, shade, shade), (x, sy), radius)
 
-    def _draw_menu(self, game: SpaceFighterGame) -> None:
+    def _draw_menu(self, game: SpaceFighterGame, input_mode: str, imu_status: str) -> None:
         title = self.title_font.render("STAR", True, (255, 209, 102))
         title2 = self.title_font.render("FIGHTER", True, (255, 209, 102))
         self.screen.blit(title, (self.width // 2 - title.get_width() // 2, 118))
@@ -82,10 +90,22 @@ class PygameRenderer:
         self.screen.blit(subtitle, (self.width // 2 - subtitle.get_width() // 2, 210))
         best = self.hud_font.render(f"BEST {game.high_score:04d}", True, (254, 243, 199))
         self.screen.blit(best, (self.width // 2 - best.get_width() // 2, 244))
-        self._draw_button("SPACE START", self.width // 2, 302, primary=True)
-        self._draw_button("ESC EXIT", self.width // 2, 348, primary=False)
+        self.keyboard_button_rect.centerx = self.width // 2 - 72
+        self.aidog_button_rect.centerx = self.width // 2 + 72
+        self._draw_mode_button(self.keyboard_button_rect, "KEYBOARD", input_mode == "keyboard")
+        self._draw_mode_button(self.aidog_button_rect, "AIDOG IMU", input_mode == "aidog")
+        status_color = (117, 240, 138) if imu_status == "IMU READY" else (255, 209, 102) if imu_status == "LINK OK" else (154, 168, 186)
+        status = self.small_font.render(f"INPUT {input_mode.upper()}  {imu_status}", True, status_color)
+        self.screen.blit(status, (self.width // 2 - status.get_width() // 2, 334))
+        if input_mode == "aidog":
+            self.prepare_dog_button_rect.centerx = self.width // 2
+            self._draw_mode_button(self.prepare_dog_button_rect, "DOG DOWN", self.pressed_button == "prepare_dog")
+            if self.feedback_message and self.time_s < self.feedback_until_s:
+                msg = self.small_font.render(self.feedback_message, True, (255, 209, 102))
+                self.screen.blit(msg, (self.width // 2 - msg.get_width() // 2, 386))
+        self._draw_button("SPACE START", self.width // 2, 414 if input_mode == "aidog" else 372, primary=True)
         self._draw_player_ship(self.width // 2, self.height - 132, 1.05)
-        hint = self.small_font.render("ARROWS / WASD MOVE, AUTO FIRE", True, (154, 168, 186))
+        hint = self.small_font.render("CLICK MODE, ARROWS / WASD BACKUP", True, (154, 168, 186))
         self.screen.blit(hint, (self.width // 2 - hint.get_width() // 2, self.height - 42))
 
     def _draw_button(self, text: str, center_x: int, y: int, primary: bool) -> None:
@@ -100,8 +120,18 @@ class PygameRenderer:
         label = self.hud_font.render(text, True, text_color)
         self.screen.blit(label, (rect.centerx - label.get_width() // 2, rect.centery - label.get_height() // 2))
 
-    def _draw_gameplay(self, game: SpaceFighterGame) -> None:
-        self._draw_hud(game)
+    def _draw_mode_button(self, rect, label: str, selected: bool) -> None:
+        pg = self.pygame
+        fill = (255, 209, 102) if selected else (20, 28, 42)
+        border = (255, 238, 180) if selected else (76, 88, 108)
+        text_color = (8, 12, 20) if selected else (235, 240, 248)
+        pg.draw.rect(self.screen, fill, rect, border_radius=7)
+        pg.draw.rect(self.screen, border, rect, 1, border_radius=7)
+        text = self.small_font.render(label, True, text_color)
+        self.screen.blit(text, (rect.centerx - text.get_width() // 2, rect.centery - text.get_height() // 2))
+
+    def _draw_gameplay(self, game: SpaceFighterGame, input_mode: str, imu_status: str) -> None:
+        self._draw_hud(game, input_mode, imu_status)
         for powerup in game.powerups:
             self._draw_powerup(powerup)
         for bullet in game.player_bullets:
@@ -121,7 +151,7 @@ class PygameRenderer:
             self._draw_invincible_ring(int(game.player_center.x), int(game.player_center.y))
         self._draw_state_overlay(game)
 
-    def _draw_hud(self, game: SpaceFighterGame) -> None:
+    def _draw_hud(self, game: SpaceFighterGame, input_mode: str, imu_status: str) -> None:
         pg = self.pygame
         panel_h = 24
         life_rect = pg.Rect(12, 12, 62, panel_h)
@@ -146,6 +176,11 @@ class PygameRenderer:
         self._draw_pill(weapon_rect)
         weapon = self.hud_font.render(f"WEAPON {game.weapon_level}", True, (245, 248, 252))
         self.screen.blit(weapon, (weapon_rect.centerx - weapon.get_width() // 2, weapon_rect.centery - weapon.get_height() // 2))
+        mode_color = (117, 240, 138) if imu_status == "IMU READY" else (255, 209, 102) if input_mode == "aidog" else (201, 213, 225)
+        mode = self.small_font.render(f"{input_mode.upper()} {imu_status}", True, mode_color)
+        self.screen.blit(mode, (self.width - mode.get_width() - 14, 42))
+        if input_mode == "aidog":
+            self._draw_ws_buttons()
         if game.state == BOSS and game.boss is not None:
             self._draw_boss_bar(game.boss)
         elif game.state == RUNNING:
@@ -157,6 +192,35 @@ class PygameRenderer:
         elif game.state == BOSS_WARNING:
             warning = self.hud_font.render("WARNING INCOMING", True, (255, 231, 161))
             self.screen.blit(warning, (self.width // 2 - warning.get_width() // 2, 52))
+
+    def _draw_ws_buttons(self) -> None:
+        mouse_pos = self.pygame.mouse.get_pos()
+        self._draw_small_button(self.restart_ws_button_rect, "RESTART WS", "restart_ws", mouse_pos)
+        self._draw_small_button(self.recalibrate_button_rect, "RECALIBRATE", "recalibrate", mouse_pos)
+        if self.feedback_message and self.time_s < self.feedback_until_s:
+            msg = self.small_font.render(self.feedback_message, True, (255, 209, 102))
+            self.screen.blit(msg, (14, self.restart_ws_button_rect.bottom + 4))
+
+    def _draw_small_button(self, rect, label: str, button_id: str, mouse_pos: Tuple[int, int]) -> None:
+        pg = self.pygame
+        hovered = rect.collidepoint(mouse_pos)
+        pressed = self.pressed_button == button_id
+        fill = (31, 37, 50) if hovered else (10, 15, 28)
+        border = (255, 209, 102) if hovered else (76, 88, 108)
+        text_color = (8, 12, 20) if pressed else (235, 240, 248)
+        draw_rect = rect.copy()
+        if pressed:
+            draw_rect.move_ip(0, 1)
+            fill = (255, 209, 102)
+            border = (255, 238, 180)
+        pg.draw.rect(self.screen, fill, draw_rect, border_radius=5)
+        pg.draw.rect(self.screen, border, draw_rect, 1, border_radius=5)
+        text = self.small_font.render(label, True, text_color)
+        self.screen.blit(text, (draw_rect.centerx - text.get_width() // 2, draw_rect.centery - text.get_height() // 2))
+
+    def set_button_feedback(self, message: str, now_s: float) -> None:
+        self.feedback_message = str(message)
+        self.feedback_until_s = now_s + 1.2
 
     def _draw_pill(self, rect, accent: Color = (255, 255, 255)) -> None:
         pg = self.pygame
