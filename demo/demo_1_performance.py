@@ -54,7 +54,7 @@ def main() -> int:
     print("[Show] Connecting to robot...")
     with AiDog() as dog:
         # Scan and connect by BLE name prefix.
-        dog.connect("Changba-Ai-Dog")
+        dog.connect("Gogobot")
         # Or connect by BLE address / platform UUID.
         # dog.connect(address="xx:xx:xx:xx:xx:xx")
 

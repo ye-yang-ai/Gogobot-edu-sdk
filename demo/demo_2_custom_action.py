@@ -97,7 +97,7 @@ def run_sniff_motion(dog: AiDog) -> None:
 def main() -> None:
     with AiDog() as dog:
         # Scan and connect by BLE name prefix.
-        dog.connect("Changba-Ai-Dog")
+        dog.connect("Gogobot")
         # Or connect by BLE address / platform UUID.
         # dog.connect(address="xx:xx:xx:xx:xx:xx")
 

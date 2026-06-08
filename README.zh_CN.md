@@ -1,4 +1,4 @@
-﻿# Gogobot EDU SDK
+# Gogobot EDU SDK
 
 [English](README.md) | 中文
 
@@ -64,7 +64,7 @@ twine check dist/*
 from aidog_sdk import AiDog, Action, EarAction, ExpressionAction, Tone, Movement
 
 with AiDog() as dog:
-    dog.connect("Changba-Ai-Dog", retries=3, retry_delay_s=1.0)
+    dog.connect("Gogobot", retries=3, retry_delay_s=1.0)
 
     dog.perform_action(Action.SIT_DOWN)
     dog.perform_action("shake_hand")

@@ -103,7 +103,7 @@ def run_sniff_motion(dog: AiDog, hold_s: float) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run custom robot-adjustment action")
-    parser.add_argument("--name-prefix", default="Changba-Ai-Dog", help="BLE name prefix")
+    parser.add_argument("--name-prefix", default="Gogobot", help="BLE name prefix")
     parser.add_argument("--address", default=None, help="BLE address or platform UUID")
     parser.add_argument("--timeout", type=float, default=20.0, help="reserved timeout hint")
     parser.add_argument("--hold", type=float, default=4.0, help="hold duration during expression/audio")

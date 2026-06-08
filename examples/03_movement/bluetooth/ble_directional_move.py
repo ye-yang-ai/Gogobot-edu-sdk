@@ -53,7 +53,7 @@ def require_confirmation(yes: bool) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run one directional movement")
-    parser.add_argument("--name-prefix", default="Changba-Ai-Dog", help="BLE name prefix")
+    parser.add_argument("--name-prefix", default="Gogobot", help="BLE name prefix")
     parser.add_argument("--address", default=None, help="BLE address or platform UUID")
     parser.add_argument("--direction", choices=sorted(MOVEMENTS), default="forward")
     parser.add_argument("--duration", type=float, default=2.0, help="movement duration seconds")

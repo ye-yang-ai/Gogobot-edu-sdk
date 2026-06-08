@@ -142,7 +142,7 @@ def no_obstacle_idle_reaction(dog: AiDog) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run Gogobot EDU demo3 reactive patrol")
-    parser.add_argument("--name-prefix", default="Changba-Ai-Dog", help="BLE name prefix")
+    parser.add_argument("--name-prefix", default="Gogobot", help="BLE name prefix")
     parser.add_argument("--address", default=None, help="BLE address or platform UUID")
     parser.add_argument("--patrol-time", type=float, default=8.0, help="max patrol duration in seconds")
     parser.add_argument("--obstacle-mm", type=float, default=250.0, help="front TOF obstacle threshold")

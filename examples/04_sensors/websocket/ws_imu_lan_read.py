@@ -95,7 +95,7 @@ def main() -> int:
     parser.add_argument("--port", type=int, default=8766, help="listen port")
     parser.add_argument("--ble", action="store_true", help="also connect BLE to request stream rate")
     parser.add_argument("--ws-config", action="store_true", help="send IMU hz config over WebSocket after robot connects")
-    parser.add_argument("--name-prefix", default="Changba-Ai-Dog", help="BLE name prefix when --ble")
+    parser.add_argument("--name-prefix", default="Gogobot", help="BLE name prefix when --ble")
     parser.add_argument("--address", default=None, help="BLE address or platform UUID when --ble")
     parser.add_argument("--hz", type=int, default=50, help="requested IMU rate for --ble or --ws-config")
     parser.add_argument("--timeout", type=float, default=0.0, help="auto-exit after seconds; 0 runs forever")

@@ -9,7 +9,7 @@ Dependencies:
     pip install -e .
 Run:
     python examples/01_connection/bluetooth/ble_scan_and_connect.py
-    python examples/01_connection/bluetooth/ble_scan_and_connect.py --name-prefix Changba-Ai-Dog
+    python examples/01_connection/bluetooth/ble_scan_and_connect.py --name-prefix Gogobot
     python examples/01_connection/bluetooth/ble_scan_and_connect.py --address AA:BB:CC:DD:EE:FF
 Expected result:
     The terminal lists nearby devices and reports a successful BLE connection.
@@ -32,7 +32,7 @@ from aidog_sdk import AiDog
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Scan and connect to a Gogobot EDU robot")
-    parser.add_argument("--name-prefix", default="Changba-Ai-Dog", help="BLE name prefix")
+    parser.add_argument("--name-prefix", default="Gogobot", help="BLE name prefix")
     parser.add_argument("--address", default=None, help="skip scan and connect to this BLE address or UUID")
     parser.add_argument("--timeout", type=float, default=0.0, help="reserved for future scan timeout")
     args = parser.parse_args()

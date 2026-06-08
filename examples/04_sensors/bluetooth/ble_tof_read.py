@@ -52,7 +52,7 @@ def build_tof_printer(mode: str) -> Callable[[Dict[str, object]], None]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Read Gogobot EDU TOF stream")
-    parser.add_argument("--name-prefix", default="Changba-Ai-Dog", help="BLE name prefix")
+    parser.add_argument("--name-prefix", default="Gogobot", help="BLE name prefix")
     parser.add_argument("--address", default=None, help="BLE address or platform UUID")
     parser.add_argument("--hz", type=int, default=20, help="requested TOF stream rate")
     parser.add_argument("--timeout", type=float, default=0.0, help="auto-exit after seconds; 0 runs forever")

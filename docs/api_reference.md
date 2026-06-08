@@ -6,8 +6,8 @@ This page summarizes the public APIs exported from `aidog_sdk`.
 
 | API | Description |
 |---|---|
-| `scan(name_prefix="Changba-Ai-Dog")` | Scan nearby BLE devices and return `(name, address)` tuples |
-| `connect(name_prefix="Changba-Ai-Dog", address=None, retries=3, retry_delay_s=1.0)` | Connect by name prefix or direct address |
+| `scan(name_prefix="Gogobot")` | Scan nearby BLE devices and return `(name, address)` tuples |
+| `connect(name_prefix="Gogobot", address=None, retries=3, retry_delay_s=1.0)` | Connect by name prefix or direct address |
 | `disconnect()` | Disconnect current BLE device |
 | `shutdown()` | Disconnect and stop the background BLE thread |
 | `is_connected` | Connection state property |

@@ -29,7 +29,7 @@ pip install -e ".[bidir_audio]"
 from aidog_sdk import AiDog
 
 with AiDog() as dog:
-    devices = dog.scan("Changba-Ai-Dog")
+    devices = dog.scan("Gogobot")
     print(devices)
 ```
 
@@ -39,7 +39,7 @@ Connect by name prefix:
 from aidog_sdk import AiDog
 
 with AiDog() as dog:
-    dog.connect("Changba-Ai-Dog", retries=3, retry_delay_s=1.0)
+    dog.connect("Gogobot", retries=3, retry_delay_s=1.0)
     print("connected")
 ```
 
@@ -55,7 +55,7 @@ dog.connect(address="AA:BB:CC:DD:EE:FF", retries=3, retry_delay_s=1.0)
 from aidog_sdk import AiDog, Action
 
 with AiDog() as dog:
-    dog.connect("Changba-Ai-Dog")
+    dog.connect("Gogobot")
     ok = dog.perform_action(Action.SIT_DOWN, timeout_s=12.0)
     print("action_done:", ok)
 ```

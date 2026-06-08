@@ -7,7 +7,7 @@ Usage examples:
    python tools/set_volume.py --address AA:BB:CC:DD:EE:FF 3
 
 2) Auto-scan by BLE device name prefix:
-   python tools/set_volume.py --name-prefix Changba-Ai-Dog 3
+   python tools/set_volume.py --name-prefix Gogobot 3
 
 3) Set volume without playing a verification tone:
    python tools/set_volume.py --no-verify 3
@@ -42,7 +42,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Set AI-Dog volume over BLE")
     parser.add_argument("volume", type=int, choices=range(0, 5), metavar="0-4", help="volume level, 0=mute, 4=max")
     parser.add_argument("--address", help="BLE device address, e.g. AA:BB:CC:DD:EE:FF")
-    parser.add_argument("--name-prefix", default="Changba-Ai-Dog", help="device name prefix used for scanning")
+    parser.add_argument("--name-prefix", default="Gogobot", help="device name prefix used for scanning")
     parser.add_argument("--tone", type=parse_tone, default=Tone.AGREE, help="verification tone name or id")
     parser.add_argument("--no-verify", action="store_true", help="do not play a verification tone")
     args = parser.parse_args()
