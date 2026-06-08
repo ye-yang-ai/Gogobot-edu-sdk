@@ -34,7 +34,7 @@ from aidog_sdk import (  # noqa: E402
 )
 
 
-DEFAULT_NAME_PREFIX = "Changba-Ai-Dog"
+DEFAULT_NAME_PREFIX = "Gogobot"
 PLOT_HISTORY_SECONDS = 12.0
 PLOT_REFRESH_MS = 100
 UI_POLL_MS = 80

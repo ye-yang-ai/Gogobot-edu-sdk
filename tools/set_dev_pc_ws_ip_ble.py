@@ -7,7 +7,7 @@ Usage examples:
    python tools/set_dev_pc_ws_ip_ble.py --address AA:BB:CC:DD:EE:FF 192.168.11.23
 
 2) Auto-scan by BLE device name prefix:
-   python tools/set_dev_pc_ws_ip_ble.py --name-prefix Changba-Ai-Dog 192.168.11.23
+   python tools/set_dev_pc_ws_ip_ble.py --name-prefix Gogobot 192.168.11.23
 
 The tool writes a JSON configuration payload to the ae01 characteristic.
 """
@@ -97,7 +97,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Set Dev-PC WebSocket IP via BLE")
     parser.add_argument("ip", type=validate_ip, help="PC LAN IPv4 address")
     parser.add_argument("--address", help="BLE device address (e.g. AA:BB:CC:DD:EE:FF)")
-    parser.add_argument("--name-prefix", default="Changba-Ai-Dog", help="Device name prefix used for scanning")
+    parser.add_argument("--name-prefix", default="Gogobot", help="Device name prefix used for scanning")
     parser.add_argument("--scan-timeout", type=float, default=5.0, help="Scan timeout in seconds")
     args = parser.parse_args()
 

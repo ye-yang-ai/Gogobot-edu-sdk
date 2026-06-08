@@ -984,7 +984,7 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     parser.add_argument("--bind", default="0.0.0.0")
     parser.add_argument("--port", type=int, default=8766)
     parser.add_argument("--connect-timeout", type=float, default=60.0)
-    parser.add_argument("--name-prefix", default="Changba-Ai-Dog")
+    parser.add_argument("--name-prefix", default="Gogobot")
     parser.add_argument("--address", default=None)
     parser.add_argument("--hz", type=int, default=40)
     parser.add_argument("--dog-facing", choices=("user", "away"), default="user")

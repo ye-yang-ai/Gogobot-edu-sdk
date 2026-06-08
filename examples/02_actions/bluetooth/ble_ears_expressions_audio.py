@@ -37,7 +37,7 @@ def connect_robot(dog: AiDog, name_prefix: str, address: str | None) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run ears, expression, and audio demo")
-    parser.add_argument("--name-prefix", default="Changba-Ai-Dog", help="BLE name prefix")
+    parser.add_argument("--name-prefix", default="Gogobot", help="BLE name prefix")
     parser.add_argument("--address", default=None, help="BLE address or platform UUID")
     parser.add_argument("--timeout", type=float, default=0.0, help="reserved timeout hint")
     args = parser.parse_args()

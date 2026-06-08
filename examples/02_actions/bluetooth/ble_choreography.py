@@ -56,7 +56,7 @@ def forward_with_tone(dog: AiDog, seconds: float, tone: Tone) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run a Gogobot EDU choreography")
-    parser.add_argument("--name-prefix", default="Changba-Ai-Dog", help="BLE name prefix")
+    parser.add_argument("--name-prefix", default="Gogobot", help="BLE name prefix")
     parser.add_argument("--address", default=None, help="BLE address or platform UUID")
     parser.add_argument("--timeout", type=float, default=30.0, help="turn/action timeout")
     parser.add_argument("--yes", action="store_true", help="run without interactive confirmation")

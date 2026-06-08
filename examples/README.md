@@ -86,7 +86,7 @@ examples/
 
 ## Common Arguments
 
-- `--name-prefix`: BLE advertisement prefix, default `Changba-Ai-Dog`.
+- `--name-prefix`: BLE advertisement prefix, default `Gogobot`.
 - `--address`: BLE address on Windows/Linux or platform UUID on macOS.
 - `--timeout`: auto-exit or operation timeout, depending on the example.
 - `--hz`: requested sensor stream rate.

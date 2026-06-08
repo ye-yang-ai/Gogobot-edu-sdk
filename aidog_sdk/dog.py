@@ -6,7 +6,7 @@ Typical usage::
     from aidog_sdk import AiDog, Action
 
     dog = AiDog()
-    dog.connect("Changba-Ai-Dog")
+    dog.connect("Gogobot")
 
     dog.perform_action("sit_down")
     dog.perform_action("shake_hand", count=3)
@@ -317,7 +317,7 @@ class AiDog:
     # Connection management
     # ------------------------------------------------------------------
 
-    def scan(self, name_prefix: str = "Changba-Ai-Dog") -> List[Tuple[str, str]]:
+    def scan(self, name_prefix: str = "Gogobot") -> List[Tuple[str, str]]:
         """
         Scan for nearby AI-Dog devices.
 
@@ -327,13 +327,13 @@ class AiDog:
         Example::
 
             devices = dog.scan()
-            # [("Changba-Ai-Dog-001", "AA:BB:CC:DD:EE:FF"), ...]
+            # [("Gogobot-001", "AA:BB:CC:DD:EE:FF"), ...]
         """
         return self._ble.scan(name_prefix)
 
     def connect(
         self,
-        name_prefix: str = "Changba-Ai-Dog",
+        name_prefix: str = "Gogobot",
         *,
         address: Optional[str] = None,
         retries: int = 3,
@@ -349,7 +349,7 @@ class AiDog:
         Parameters
         ----------
         name_prefix:
-            BLE advertisement name prefix to match (default ``"Changba-Ai-Dog"``).
+            BLE advertisement name prefix to match (default ``"Gogobot"``).
         address:
             Optional MAC address (Windows/Linux) or UUID (macOS).  When given,
             *name_prefix* is ignored.

@@ -7,19 +7,19 @@ The SDK uses BLE to scan, connect, write robot commands, and subscribe to robot 
 Default name prefix:
 
 ```python
-devices = dog.scan("Changba-Ai-Dog")
+devices = dog.scan("Gogobot")
 ```
 
 Returned value:
 
 ```python
-[("Changba-Ai-Dog-001", "AA:BB:CC:DD:EE:FF")]
+[("Gogobot-001", "AA:BB:CC:DD:EE:FF")]
 ```
 
 ## Connection
 
 ```python
-dog.connect("Changba-Ai-Dog", retries=3, retry_delay_s=1.0)
+dog.connect("Gogobot", retries=3, retry_delay_s=1.0)
 ```
 
 Direct address connection:

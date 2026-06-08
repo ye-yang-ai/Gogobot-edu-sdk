@@ -6,7 +6,7 @@ Quick start::
     from aidog_sdk import AiDog, Action
 
     with AiDog() as dog:
-        dog.connect("Changba-Ai-Dog")
+        dog.connect("Gogobot")
         dog.perform_action("sit_down")
         dog.perform_action(Action.SHAKE_HAND, count=3)
         dog.perform_action("dance", duration=5)

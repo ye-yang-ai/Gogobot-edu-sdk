@@ -7,7 +7,7 @@ Check:
 - Robot is powered on.
 - Robot is close enough to the computer.
 - Bluetooth is enabled on the computer.
-- Device name prefix matches `Changba-Ai-Dog`.
+- Device name prefix matches `Gogobot`.
 - No other host is already holding the BLE connection.
 
 ## Direct Address Connect Fails

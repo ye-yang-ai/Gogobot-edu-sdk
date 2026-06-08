@@ -39,7 +39,7 @@ def connect_robot(dog: AiDog, name_prefix: str, address: str | None) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run a basic Gogobot EDU action")
-    parser.add_argument("--name-prefix", default="Changba-Ai-Dog", help="BLE name prefix")
+    parser.add_argument("--name-prefix", default="Gogobot", help="BLE name prefix")
     parser.add_argument("--address", default=None, help="BLE address or platform UUID")
     parser.add_argument("--action", default="sit_down", help="action name or numeric ID")
     parser.add_argument("--count", type=int, default=None, help="optional repeat count for count actions")
