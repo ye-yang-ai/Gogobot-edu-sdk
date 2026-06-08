@@ -32,7 +32,7 @@ from aidog_sdk import AiDog
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Scan and connect to a Gogobot EDU robot")
-    parser.add_argument("--name-prefix", default="Changba-Ai-Dog", help="BLE name prefix")
+    parser.add_argument("--name-prefix", default="Gogobot", help="BLE name prefix")
     parser.add_argument("--address", default=None, help="skip scan and connect to this BLE address or UUID")
     parser.add_argument("--timeout", type=float, default=0.0, help="reserved for future scan timeout")
     args = parser.parse_args()
