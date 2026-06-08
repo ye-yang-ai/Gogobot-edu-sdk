@@ -2,10 +2,23 @@
 
 from __future__ import annotations
 
+import math
+import random
 import time
+from dataclasses import dataclass
 from typing import Optional, Tuple
 
-from .core import CALIBRATING, GAME_OVER, READY, RUNNING, WAIT_IMU, BrickBreakerGame
+from .core import CALIBRATING, GAME_OVER, LEVEL_CLEAR, READY, RUNNING, WAIT_IMU, BrickBreakerGame
+
+
+@dataclass
+class CelebrationParticle:
+    x: float
+    y: float
+    vx: float
+    vy: float
+    life_s: float
+    color: Tuple[int, int, int]
 
 
 class PygameRenderer:
@@ -24,10 +37,13 @@ class PygameRenderer:
         self.score_font = pygame.font.SysFont("Segoe UI", 34, bold=True)
         self.title_font = pygame.font.SysFont("Segoe UI", 28, bold=True)
         self.restart_button_rect = pygame.Rect(28, 96, 132, 30)
-        self.prepare_button_rect = pygame.Rect(174, 96, 160, 30)
+        self.prepare_button_rect = pygame.Rect(28, 136, 160, 30)
         self.pressed_button: Optional[str] = None
         self.feedback_message = ""
         self.feedback_until_s = 0.0
+        self.celebration_label = ""
+        self.celebration_until_s = 0.0
+        self.particles: list[CelebrationParticle] = []
 
     def tick(self, fps: int) -> None:
         self.clock.tick(int(fps))
@@ -35,6 +51,26 @@ class PygameRenderer:
     def set_button_feedback(self, message: str, now_s: float) -> None:
         self.feedback_message = str(message)
         self.feedback_until_s = now_s + 1.2
+
+    def celebrate(self, label: str, now_s: float) -> None:
+        self.celebration_label = str(label)
+        self.celebration_until_s = now_s + 1.6
+        cx = self.width / 2
+        cy = self.height * 0.25
+        colors = ((10, 132, 255), (52, 199, 89), (255, 149, 0), (255, 204, 0), (175, 82, 222), (255, 59, 48))
+        for i in range(56):
+            angle = (math.tau / 56) * i + random.uniform(-0.08, 0.08)
+            speed = random.uniform(95.0, 245.0)
+            self.particles.append(
+                CelebrationParticle(
+                    cx,
+                    cy,
+                    math.cos(angle) * speed,
+                    math.sin(angle) * speed,
+                    random.uniform(0.65, 1.2),
+                    random.choice(colors),
+                )
+            )
 
     def draw(self, game: BrickBreakerGame, roll_deg: float, imu_ok: bool) -> None:
         self._draw_background()
@@ -45,6 +81,7 @@ class PygameRenderer:
         self._draw_balls(game)
         self._draw_paddle(game)
         self._draw_roll_bar(roll_deg)
+        self._draw_celebration()
         self._draw_state(game)
         self.pygame.display.flip()
 
@@ -157,7 +194,7 @@ class PygameRenderer:
         self._draw_button(self.prepare_button_rect, "重新准备机器狗", "prepare", mouse_pos)
         if self.feedback_message and time.monotonic() < self.feedback_until_s:
             surface = self.small_font.render(self.feedback_message, True, (251, 191, 36))
-            self.screen.blit(surface, (28, self.restart_button_rect.bottom + 8))
+            self.screen.blit(surface, (self.prepare_button_rect.x, self.prepare_button_rect.bottom + 10))
 
     def _draw_button(self, rect, label: str, button_id: str, mouse_pos: Tuple[int, int]) -> None:
         pg = self.pygame
@@ -187,6 +224,7 @@ class PygameRenderer:
             WAIT_IMU: "等待 IMU / WebSocket 连接",
             CALIBRATING: "校准中，请保持当前姿态",
             READY: "按空格开始，按 R 重新校准",
+            LEVEL_CLEAR: f"LEVEL CLEAR! 第 {game.level} 关完成，按空格进入下一关",
             RUNNING: "",
             GAME_OVER: f"挑战结束，本局 {game.score} 分，按空格重来",
         }
@@ -194,10 +232,36 @@ class PygameRenderer:
         if not msg:
             return
         surface = self.font.render(msg, True, (248, 250, 252))
-        rect = surface.get_rect(midbottom=(self.width // 2, self.height - 54)).inflate(24, 12)
+        rect = surface.get_rect(midbottom=(self.width // 2, self.height - 14)).inflate(24, 12)
         self.pygame.draw.rect(self.screen, (10, 15, 28), rect)
         self.pygame.draw.rect(self.screen, (251, 191, 36), rect, 1)
         self.screen.blit(surface, (rect.x + 12, rect.y + 6))
+
+    def _draw_celebration(self) -> None:
+        self._draw_particles()
+        if not self.celebration_label or time.monotonic() >= self.celebration_until_s:
+            return
+        surface = self.title_font.render(self.celebration_label, True, (254, 243, 199))
+        shadow = self.title_font.render(self.celebration_label, True, (15, 23, 42))
+        x = self.width // 2 - surface.get_width() // 2
+        y = int(self.height * 0.19)
+        self.screen.blit(shadow, (x + 2, y + 2))
+        self.screen.blit(surface, (x, y))
+
+    def _draw_particles(self) -> None:
+        next_particles: list[CelebrationParticle] = []
+        dt = 1.0 / 60.0
+        for particle in self.particles:
+            particle.life_s -= dt
+            if particle.life_s <= 0.0:
+                continue
+            particle.vy += 180.0 * dt
+            particle.x += particle.vx * dt
+            particle.y += particle.vy * dt
+            next_particles.append(particle)
+            radius = max(2, int(6 * min(1.0, particle.life_s)))
+            self.pygame.draw.circle(self.screen, particle.color, (int(particle.x), int(particle.y)), radius)
+        self.particles = next_particles
 
     def _draw_label(self, text: str, x: int, y: int) -> None:
         label = self.small_font.render(text, True, (145, 165, 189))

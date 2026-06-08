@@ -15,7 +15,15 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 
-from aidog_sdk.game.brick_breaker.core import CALIBRATING, GAME_OVER, READY, WAIT_IMU, BrickBreakerConfig, BrickBreakerGame
+from aidog_sdk.game.brick_breaker.core import (
+    CALIBRATING,
+    GAME_OVER,
+    LEVEL_CLEAR,
+    READY,
+    WAIT_IMU,
+    BrickBreakerConfig,
+    BrickBreakerGame,
+)
 from aidog_sdk.game.brick_breaker.input import (
     BleImuReader,
     KeyboardRollReader,
@@ -86,6 +94,9 @@ def run_game(args: argparse.Namespace) -> int:
     calibration_samples: list[float] = []
     calibration_started_s = 0.0
     last_high_score = game.high_score
+    handled_fruit_event_id = 0
+    handled_level_clear_event_id = 0
+    handled_score_celebration_event_id = 0
 
     try:
         reader.start()
@@ -133,6 +144,8 @@ def run_game(args: argparse.Namespace) -> int:
                     elif event.key == pg.K_SPACE:
                         if game.state == READY:
                             game.start_running()
+                        elif game.state == LEVEL_CLEAR:
+                            game.start_next_level()
                         elif game.state == GAME_OVER:
                             game.ready()
                 elif event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
@@ -174,6 +187,23 @@ def run_game(args: argparse.Namespace) -> int:
                 paddle_center_x = mapper.map(0.0)
 
             game.update(dt_s, paddle_center_x)
+            if game.score_celebration_event_id > handled_score_celebration_event_id:
+                handled_score_celebration_event_id = game.score_celebration_event_id
+                renderer.celebrate(game.score_celebration_label, now_s)
+            elif game.score_celebration_event_id < handled_score_celebration_event_id:
+                handled_score_celebration_event_id = game.score_celebration_event_id
+            if game.fruit_event_id > handled_fruit_event_id:
+                handled_fruit_event_id = game.fruit_event_id
+                renderer.celebrate("Power Fruit!", now_s)
+                run_reader_action_async("play_reward_feedback")
+            elif game.fruit_event_id < handled_fruit_event_id:
+                handled_fruit_event_id = game.fruit_event_id
+            if game.level_clear_event_id > handled_level_clear_event_id:
+                handled_level_clear_event_id = game.level_clear_event_id
+                renderer.celebrate("LEVEL CLEAR!", now_s)
+                run_reader_action_async("play_reward_feedback")
+            elif game.level_clear_event_id < handled_level_clear_event_id:
+                handled_level_clear_event_id = game.level_clear_event_id
             if game.state == GAME_OVER and game.high_score > last_high_score:
                 if score_store.save_if_higher(game.high_score):
                     last_high_score = game.high_score

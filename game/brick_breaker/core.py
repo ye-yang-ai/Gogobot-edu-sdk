@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 
 WAIT_IMU = "WAIT_IMU"
 CALIBRATING = "CALIBRATING"
 READY = "READY"
 RUNNING = "RUNNING"
+LEVEL_CLEAR = "LEVEL_CLEAR"
 GAME_OVER = "GAME_OVER"
 
 
@@ -69,6 +70,7 @@ class BrickBreakerConfig:
     special_bricks_per_level: int = 4
     level_speed_bonus: float = 24.0
     ready_delay_s: float = 0.6
+    score_celebrations: Tuple[Tuple[int, str], ...] = ((100, "Nice!"), (300, "Excellent!"), (500, "Amazing!"))
 
 
 class BrickBreakerGame:
@@ -84,6 +86,11 @@ class BrickBreakerGame:
         self.bricks: List[Brick] = []
         self.hit_event_id = 0
         self.multiball_event_id = 0
+        self.fruit_event_id = 0
+        self.level_clear_event_id = 0
+        self.score_celebration_event_id = 0
+        self.score_celebration_label = ""
+        self._celebrated_score_targets: set[int] = set()
         self.new_high_score = False
         self.reset_round()
 
@@ -105,11 +112,23 @@ class BrickBreakerGame:
         if self.state == READY:
             self.state = RUNNING
 
+    def start_next_level(self) -> None:
+        if self.state != LEVEL_CLEAR:
+            return
+        self.level += 1
+        self.elapsed_s = 0.0
+        self.state = RUNNING
+        self.balls = [self._make_start_ball()]
+        self.bricks = self._build_bricks()
+        self._normalize_ball_speed(self.balls[0], self.config.ball_speed + self.config.level_speed_bonus * (self.level - 1))
+
     def reset_round(self) -> None:
         cfg = self.config
         self.score = 0
         self.elapsed_s = 0.0
         self.new_high_score = False
+        self.score_celebration_label = ""
+        self._celebrated_score_targets.clear()
         self.paddle.x = (cfg.width - cfg.paddle_width) * 0.5
         self.paddle.y = cfg.height - cfg.paddle_bottom
         self.balls = [self._make_start_ball()]
@@ -201,14 +220,14 @@ class BrickBreakerGame:
         hit_brick.alive = False
         self.score += self.config.special_brick_score if hit_brick.kind == "special" else self.config.brick_score
         self.hit_event_id += 1
+        self._update_score_celebration()
         ball.velocity.y = -ball.velocity.y
         if hit_brick.kind == "special":
+            self.fruit_event_id += 1
             self._spawn_extra_ball(ball)
         if self.remaining_bricks() == 0:
-            self.level += 1
-            self.balls = [self._make_start_ball()]
-            self.bricks = self._build_bricks()
-            self._normalize_ball_speed(self.balls[0], self.config.ball_speed + self.config.level_speed_bonus * (self.level - 1))
+            self.state = LEVEL_CLEAR
+            self.level_clear_event_id += 1
 
     def _first_hit_brick(self, ball: Ball) -> Optional[Brick]:
         for brick in self.bricks:
@@ -243,7 +262,7 @@ class BrickBreakerGame:
         )
 
     def _spawn_extra_ball(self, source_ball: Ball) -> None:
-        speed = max(self.config.ball_speed, self._ball_speed(source_ball))
+        speed = self.config.ball_speed * 0.5
         direction = -1.0 if source_ball.velocity.x >= 0.0 else 1.0
         angle = math.radians(34.0 * direction)
         self.balls.append(
@@ -253,6 +272,13 @@ class BrickBreakerGame:
             )
         )
         self.multiball_event_id += 1
+
+    def _update_score_celebration(self) -> None:
+        for target, label in self.config.score_celebrations:
+            if self.score >= target and target not in self._celebrated_score_targets:
+                self._celebrated_score_targets.add(target)
+                self.score_celebration_label = label
+                self.score_celebration_event_id += 1
 
     def _build_bricks(self) -> List[Brick]:
         cfg = self.config

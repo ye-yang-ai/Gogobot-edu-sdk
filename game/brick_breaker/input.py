@@ -5,7 +5,18 @@ from __future__ import annotations
 import threading
 import time
 from dataclasses import dataclass
+import random
 from typing import Dict, Optional, Tuple
+
+
+REWARD_AUDIO_NAMES = ("AGREE", "HENG", "UH", "CURIOUS", "WAKE_UP")
+REWARD_EXPRESSION_NAMES = ("HAPPY_01", "HAPPY_02", "LOVE_01", "SMILE_01", "PRIDE")
+REWARD_EAR_NAMES = (
+    "EAR_FLICK_EXCITED",
+    "EAR_FLICK_LEFT_AND_RIGHT_UP",
+    "EAR_FLICK_RANDOM_POSITIVE",
+    "EAR_WIGGLE_SUBTLE_SELF_STABLE",
+)
 
 
 class LatestRoll:
@@ -141,6 +152,16 @@ class WsImuReader:
                 return
         self._prepare_robot_for_game(dog)
 
+    def play_reward_feedback(self) -> None:
+        with self._lock:
+            dog = self.dog
+            host = self.host
+            if dog is None or host is None or not host.is_robot_connected:
+                return
+        self._send_random_audio(dog, REWARD_AUDIO_NAMES)
+        self._send_random_expression(dog, REWARD_EXPRESSION_NAMES)
+        self._send_random_ear(dog, REWARD_EAR_NAMES)
+
     def _on_imu(self, imu: Dict[str, object]) -> None:
         roll = imu.get("roll_deg")
         if isinstance(roll, (int, float)):
@@ -180,6 +201,39 @@ class WsImuReader:
                 return
             except Exception:
                 continue
+
+    def _send_random_audio(self, dog, names: Tuple[str, ...]) -> None:
+        self._send_audio(dog, random.choice(names))
+
+    def _send_random_expression(self, dog, names: Tuple[str, ...]) -> None:
+        self._send_expression(dog, random.choice(names))
+
+    def _send_random_ear(self, dog, names: Tuple[str, ...]) -> None:
+        self._send_ear(dog, random.choice(names))
+
+    def _send_audio(self, dog, name: str) -> None:
+        try:
+            from aidog_sdk import Tone
+
+            dog.send_audio(getattr(Tone, name), transport="ws")
+        except Exception:
+            pass
+
+    def _send_expression(self, dog, name: str) -> None:
+        try:
+            from aidog_sdk import ExpressionAction
+
+            dog.send_expression(getattr(ExpressionAction, name), transport="ws")
+        except Exception:
+            pass
+
+    def _send_ear(self, dog, name: str) -> None:
+        try:
+            from aidog_sdk import EarAction
+
+            dog.send_ear(getattr(EarAction, name), transport="ws")
+        except Exception:
+            pass
 
 
 class BleImuReader:
