@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 import random
 from typing import Tuple
 
@@ -15,6 +14,8 @@ from .core import (
     ENEMY_TANK,
     GAME_OVER,
     MENU,
+    POWERUP_BOMB,
+    POWERUP_HEAL,
     POWERUP_SHIELD,
     POWERUP_WEAPON,
     RUNNING,
@@ -44,7 +45,7 @@ class PygameRenderer:
         self.hud_font = pygame.font.SysFont("Segoe UI", 15, bold=True)
         self.score_font = pygame.font.SysFont("Segoe UI", 19, bold=True)
         self.title_font = pygame.font.SysFont("Segoe UI", 42, bold=True)
-        self.stars = [(random.randrange(width), random.randrange(height), random.choice((1, 1, 2))) for _ in range(90)]
+        self.stars = [(random.randrange(width), random.randrange(height), random.choice((1, 1, 1, 2))) for _ in range(46)]
         self.time_s = 0.0
 
     def tick(self, fps: int) -> None:
@@ -61,23 +62,16 @@ class PygameRenderer:
 
     def _draw_background(self) -> None:
         pg = self.pygame
-        self.screen.fill((7, 13, 31))
-        for y in range(self.height):
+        self.screen.fill((6, 11, 24))
+        for y in range(0, self.height, 6):
             t = y / max(1, self.height - 1)
-            color = (int(7 + 8 * t), int(13 + 10 * t), int(31 + 6 * t))
-            pg.draw.line(self.screen, color, (0, y), (self.width, y))
-        nebula = pg.Surface((self.width, self.height), pg.SRCALPHA)
-        pg.draw.circle(nebula, (103, 167, 255, 32), (int(self.width * 0.25), int(self.height * 0.34)), 92)
-        pg.draw.circle(nebula, (180, 140, 255, 28), (int(self.width * 0.68), int(self.height * 0.28)), 76)
-        pg.draw.circle(nebula, (104, 230, 255, 22), (int(self.width * 0.52), int(self.height * 0.58)), 88)
-        self.screen.blit(nebula, (0, 0))
+            color = (int(6 + 5 * t), int(11 + 6 * t), int(24 + 10 * t))
+            pg.draw.rect(self.screen, color, (0, y, self.width, 6))
         scroll = int(self.time_s * 36) % self.height
         for x, y, radius in self.stars:
             sy = (y + scroll) % self.height
-            shade = 130 + radius * 45
+            shade = 120 + radius * 48
             pg.draw.circle(self.screen, (shade, shade, shade), (x, sy), radius)
-        for y in range(0, self.height, 6):
-            pg.draw.line(self.screen, (255, 255, 255, 7), (0, y), (self.width, y))
 
     def _draw_menu(self, game: SpaceFighterGame) -> None:
         title = self.title_font.render("STAR", True, (255, 209, 102))
@@ -88,10 +82,10 @@ class PygameRenderer:
         self.screen.blit(subtitle, (self.width // 2 - subtitle.get_width() // 2, 210))
         best = self.hud_font.render(f"BEST {game.high_score:04d}", True, (254, 243, 199))
         self.screen.blit(best, (self.width // 2 - best.get_width() // 2, 244))
-        self._draw_button("SPACE 开始", self.width // 2, 302, primary=True)
-        self._draw_button("ESC 退出", self.width // 2, 348, primary=False)
-        self._draw_player_ship(self.width // 2, self.height - 132, 1.35)
-        hint = self.small_font.render("方向键 / WASD 移动，自动射击", True, (154, 168, 186))
+        self._draw_button("SPACE START", self.width // 2, 302, primary=True)
+        self._draw_button("ESC EXIT", self.width // 2, 348, primary=False)
+        self._draw_player_ship(self.width // 2, self.height - 132, 1.05)
+        hint = self.small_font.render("ARROWS / WASD MOVE, AUTO FIRE", True, (154, 168, 186))
         self.screen.blit(hint, (self.width // 2 - hint.get_width() // 2, self.height - 42))
 
     def _draw_button(self, text: str, center_x: int, y: int, primary: bool) -> None:
@@ -121,16 +115,28 @@ class PygameRenderer:
         for text in game.floating_texts:
             label = self.hud_font.render(text.text, True, text.color)
             self.screen.blit(label, (int(text.pos.x - label.get_width() * 0.5), int(text.pos.y)))
-        self._draw_player_ship(int(game.player_center.x), int(game.player.y + game.player.h * 0.52), 1.0)
+        if game.invincible_timer_s <= 0.0 or int(self.time_s * 12) % 2 == 0:
+            self._draw_player_ship(int(game.player_center.x), int(game.player.y + game.player.h * 0.52), 0.72)
+        if game.invincible_timer_s > 0.0:
+            self._draw_invincible_ring(int(game.player_center.x), int(game.player_center.y))
         self._draw_state_overlay(game)
 
     def _draw_hud(self, game: SpaceFighterGame) -> None:
         pg = self.pygame
         panel_h = 24
-        life_rect = pg.Rect(12, 12, 76, panel_h)
+        life_rect = pg.Rect(12, 12, 62, panel_h)
         self._draw_pill(life_rect)
         for i in range(game.config.max_lives):
             self._draw_life_icon(24 + i * 15, 24, i < game.lives)
+        hp_rect = pg.Rect(80, 17, 68, 10)
+        pg.draw.rect(self.screen, (8, 12, 20), hp_rect, border_radius=5)
+        hp_ratio = max(0.0, min(1.0, game.hp / max(1, game.config.hp_per_life)))
+        hp_fill = pg.Rect(hp_rect.x, hp_rect.y, int(hp_rect.w * hp_ratio), hp_rect.h)
+        hp_color = (117, 240, 138) if hp_ratio > 0.45 else (255, 209, 102) if hp_ratio > 0.2 else (255, 92, 122)
+        pg.draw.rect(self.screen, hp_color, hp_fill, border_radius=5)
+        pg.draw.rect(self.screen, (180, 190, 205), hp_rect, 1, border_radius=5)
+        hp_text = self.small_font.render(f"{max(0, game.hp):03d}", True, (226, 232, 240))
+        self.screen.blit(hp_text, (hp_rect.centerx - hp_text.get_width() // 2, hp_rect.y + 10))
         score_rect = pg.Rect(0, 12, 116, panel_h)
         score_rect.centerx = self.width // 2
         self._draw_pill(score_rect, (255, 209, 102))
@@ -192,8 +198,10 @@ class PygameRenderer:
 
     def _draw_player_ship(self, center_x: int, center_y: int, scale: float) -> None:
         pg = self.pygame
+
         def p(dx: float, dy: float) -> tuple[int, int]:
             return (int(center_x + dx * scale), int(center_y + dy * scale))
+
         flame = [p(0, 46), p(8, 28), p(0, 35), p(-8, 28)]
         pg.draw.polygon(self.screen, (104, 230, 255), flame)
         body = [p(0, -48), p(18, -2), p(40, 42), p(15, 30), p(0, 52), p(-15, 30), p(-40, 42), p(-18, -2)]
@@ -202,6 +210,13 @@ class PygameRenderer:
         pg.draw.polygon(self.screen, (20, 43, 80), [p(0, -30), p(8, -2), p(0, 16), p(-8, -2)])
         pg.draw.polygon(self.screen, (255, 209, 102), [p(-25, 26), p(-40, 52), p(-13, 36)])
         pg.draw.polygon(self.screen, (255, 209, 102), [p(25, 26), p(40, 52), p(13, 36)])
+
+    def _draw_invincible_ring(self, center_x: int, center_y: int) -> None:
+        pg = self.pygame
+        pulse = 22 + int((self.time_s * 18) % 8)
+        ring = pg.Surface((pulse * 2 + 4, pulse * 2 + 4), pg.SRCALPHA)
+        pg.draw.circle(ring, (104, 230, 255, 90), (pulse + 2, pulse + 2), pulse, 2)
+        self.screen.blit(ring, (center_x - pulse - 2, center_y - pulse - 2))
 
     def _draw_enemy(self, enemy: Enemy) -> None:
         if enemy.kind == BOSS_KIND:
@@ -257,6 +272,10 @@ class PygameRenderer:
         cy = int(powerup.rect.y + powerup.rect.h * 0.5)
         if powerup.kind == POWERUP_SHIELD:
             self._draw_shield_icon(cx, cy, int(powerup.rect.w))
+        elif powerup.kind == POWERUP_HEAL:
+            self._draw_heal_icon(cx, cy, int(powerup.rect.w))
+        elif powerup.kind == POWERUP_BOMB:
+            self._draw_bomb_icon(cx, cy, int(powerup.rect.w))
         elif powerup.kind == POWERUP_WEAPON:
             self._draw_weapon_icon(cx, cy, int(powerup.rect.w))
 
@@ -278,15 +297,36 @@ class PygameRenderer:
         pg.draw.polygon(self.screen, (235, 255, 255), pts, 2)
         pg.draw.lines(self.screen, (117, 240, 138), False, [(cx - 8, cy), (cx - 2, cy + 6), (cx + 11, cy - 8)], 4)
 
+    def _draw_heal_icon(self, cx: int, cy: int, size: int) -> None:
+        pg = self.pygame
+        r = size // 2
+        hex_pts = [(cx, cy - r), (cx + r, cy - r // 2), (cx + r, cy + r // 2), (cx, cy + r), (cx - r, cy + r // 2), (cx - r, cy - r // 2)]
+        pg.draw.polygon(self.screen, (117, 240, 138), hex_pts)
+        pg.draw.polygon(self.screen, (235, 255, 239), hex_pts, 2)
+        pg.draw.rect(self.screen, (8, 38, 21), (cx - 4, cy - 13, 8, 26), border_radius=2)
+        pg.draw.rect(self.screen, (8, 38, 21), (cx - 13, cy - 4, 26, 8), border_radius=2)
+
+    def _draw_bomb_icon(self, cx: int, cy: int, size: int) -> None:
+        pg = self.pygame
+        r = size // 2
+        hex_pts = [(cx, cy - r), (cx + r, cy - r // 2), (cx + r, cy + r // 2), (cx, cy + r), (cx - r, cy + r // 2), (cx - r, cy - r // 2)]
+        pg.draw.polygon(self.screen, (180, 140, 255), hex_pts)
+        pg.draw.polygon(self.screen, (239, 229, 255), hex_pts, 2)
+        bolt = [(cx + 2, cy - 14), (cx - 8, cy + 2), (cx, cy + 2), (cx - 3, cy + 16), (cx + 12, cy - 5), (cx + 3, cy - 5)]
+        pg.draw.polygon(self.screen, (255, 240, 164), bolt)
+
     def _draw_state_overlay(self, game: SpaceFighterGame) -> None:
         if game.state == RUNNING:
             return
         if game.state == BOSS_WARNING:
-            self._draw_center_message("WARNING", "BOSS 即将登场")
+            self._draw_center_message("WARNING", "BOSS INCOMING")
         elif game.state == STAGE_CLEAR:
-            self._draw_center_message("STAGE CLEAR", "按 SPACE 进入下一关")
+            if game.stage >= game.config.max_stage:
+                self._draw_center_message("MISSION CLEAR", "SPACE BACK TO MENU")
+            else:
+                self._draw_center_message("STAGE CLEAR", "SPACE NEXT STAGE")
         elif game.state == GAME_OVER:
-            self._draw_center_message("GAME OVER", "SPACE 重试 / ESC 退出")
+            self._draw_center_message("GAME OVER", "SPACE RETRY / ESC EXIT")
 
     def _draw_center_message(self, title: str, subtitle: str) -> None:
         pg = self.pygame

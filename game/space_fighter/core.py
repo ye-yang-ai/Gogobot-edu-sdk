@@ -96,23 +96,27 @@ class FloatingText:
 class SpaceFighterConfig:
     width: int = 480
     height: int = 720
-    player_w: float = 54.0
-    player_h: float = 64.0
+    player_w: float = 38.0
+    player_h: float = 48.0
     player_speed: float = 290.0
-    initial_lives: int = 4
-    max_lives: int = 4
-    initial_shield: int = 0
-    max_shield: int = 2
+    initial_lives: int = 3
+    max_lives: int = 3
+    hp_per_life: int = 100
+    bullet_damage_to_player: int = 5
+    collision_damage_to_player: int = 50
+    invincible_s: float = 3.0
     max_weapon_level: int = 4
     fire_interval_s: float = 0.22
     bullet_speed: float = 560.0
     enemy_bullet_speed: float = 210.0
     waves_per_stage: int = 3
+    max_stage: int = 5
     warning_s: float = 1.0
     stage_clear_s: float = 1.2
     spawn_interval_s: float = 0.48
     enemy_margin_top: float = 86.0
     powerup_drop_chance: float = 0.25
+    heal_amount: int = 30
 
 
 class SpaceFighterGame:
@@ -125,7 +129,8 @@ class SpaceFighterGame:
         self.stage = 1
         self.wave = 0
         self.lives = config.initial_lives
-        self.shield = config.initial_shield
+        self.hp = config.hp_per_life
+        self.invincible_timer_s = 0.0
         self.weapon_level = 1
         self.player = Rect(0.0, 0.0, config.player_w, config.player_h)
         self.enemies: List[Enemy] = []
@@ -153,7 +158,8 @@ class SpaceFighterGame:
         self.stage = 1
         self.wave = 0
         self.lives = max(1, int(cfg.initial_lives))
-        self.shield = max(0, int(cfg.initial_shield))
+        self.hp = max(1, int(cfg.hp_per_life))
+        self.invincible_timer_s = 0.0
         self.weapon_level = 1
         self.player.x = (cfg.width - cfg.player_w) * 0.5
         self.player.y = cfg.height - cfg.player_h - 34.0
@@ -181,12 +187,22 @@ class SpaceFighterGame:
     def start_next_stage(self) -> None:
         if self.state != STAGE_CLEAR:
             return
+        if self.stage >= self.config.max_stage:
+            self.state = MENU
+            self.reset_round()
+            return
         self.stage += 1
         self.wave = 0
         self.boss = None
         self.enemies = []
+        self.player_bullets = []
         self.enemy_bullets = []
         self.powerups = []
+        self.floating_texts = []
+        self.weapon_level = 1
+        self.hp = self.config.hp_per_life
+        self.invincible_timer_s = 0.0
+        self.fire_timer_s = 0.0
         self.stage_clear_timer_s = 0.0
         self.state = RUNNING
         self._spawn_next_wave()
@@ -198,6 +214,7 @@ class SpaceFighterGame:
     def update(self, dt_s: float, move_x: float = 0.0, move_y: float = 0.0) -> None:
         dt = clamp(dt_s, 0.0, 0.05)
         self._update_floating_texts(dt)
+        self._update_invincible(dt)
         if self.state == MENU or self.state == GAME_OVER:
             return
         if self.state == STAGE_CLEAR:
@@ -284,6 +301,10 @@ class SpaceFighterGame:
             if powerup.rect.y > self.config.height + 20.0:
                 powerup.active = False
 
+    def _update_invincible(self, dt: float) -> None:
+        if self.invincible_timer_s > 0.0:
+            self.invincible_timer_s = max(0.0, self.invincible_timer_s - dt)
+
     def _update_wave_enemies(self, dt: float) -> None:
         for enemy in self.enemies:
             enemy.rect.x += enemy.vx * dt
@@ -314,16 +335,19 @@ class SpaceFighterGame:
         center_x = enemy.rect.x + enemy.rect.w * 0.5
         y = enemy.rect.y + enemy.rect.h
         if enemy.kind == BOSS_KIND:
-            for vx in (-70.0, 0.0, 70.0):
-                self.enemy_bullets.append(Bullet(Vec2(center_x, y), Vec2(vx, self.config.enemy_bullet_speed), 1, "enemy", radius=6.0))
+            for vx in (-60.0, 0.0, 60.0):
+                self.enemy_bullets.append(Bullet(Vec2(center_x, y), Vec2(vx, self._enemy_bullet_speed()), 1, "enemy", radius=6.0))
         else:
-            self.enemy_bullets.append(Bullet(Vec2(center_x, y), Vec2(0.0, self.config.enemy_bullet_speed), 1, "enemy", radius=5.0))
+            self.enemy_bullets.append(Bullet(Vec2(center_x, y), Vec2(0.0, self._enemy_bullet_speed()), 1, "enemy", radius=5.0))
+
+    def _enemy_bullet_speed(self) -> float:
+        return self.config.enemy_bullet_speed * 0.85
 
     def _spawn_next_wave(self) -> None:
         cfg = self.config
         self.wave += 1
         self.spawn_timer_s = 0.0
-        count = 3 + min(3, self.stage - 1) + (self.wave - 1)
+        count = 3 + min(4, self.stage - 1) + (self.wave - 1)
         spacing = cfg.width / (count + 1)
         kinds = (ENEMY_SCOUT, ENEMY_SHOOTER, ENEMY_TANK)
         for i in range(count):
@@ -332,7 +356,7 @@ class SpaceFighterGame:
             x = spacing * (i + 1) - w * 0.5
             y = cfg.enemy_margin_top + (i % 2) * 46.0
             vx = ((-1) ** i) * (26.0 + self.stage * 4.0) if kind != ENEMY_SCOUT else 0.0
-            enemy_hp = hp + self.stage // 2
+            enemy_hp = hp + max(0, self.stage - 1)
             self.enemies.append(
                 Enemy(
                     kind,
@@ -341,11 +365,16 @@ class SpaceFighterGame:
                     enemy_hp,
                     score,
                     vx,
-                    vy + self.stage * 5.0,
-                    fire_interval,
-                    fire_interval * 0.65,
+                    vy + (self.stage - 1) * 10.0,
+                    self._stage_fire_interval(fire_interval),
+                    self._stage_fire_interval(fire_interval) * 0.65,
                 )
             )
+
+    def _stage_fire_interval(self, base_interval: float) -> float:
+        if base_interval <= 0.0:
+            return 0.0
+        return max(0.62, base_interval - (self.stage - 1) * 0.12)
 
     def _enemy_stats(self, kind: str) -> tuple[float, float, int, int, float, float]:
         if kind == ENEMY_TANK:
@@ -366,16 +395,16 @@ class SpaceFighterGame:
         cfg = self.config
         w = 150.0
         h = 96.0
-        hp = 28 + self.stage * 10
+        hp = 38 + (self.stage - 1) * 16
         self.boss = Enemy(
             BOSS_KIND,
             Rect((cfg.width - w) * 0.5, 118.0, w, h),
             hp,
             hp,
             500 + self.stage * 120,
-            70.0 + self.stage * 6.0,
+            70.0 + (self.stage - 1) * 9.0,
             0.0,
-            0.75,
+            max(0.48, 0.85 - (self.stage - 1) * 0.08),
             0.45,
         )
         self.state = BOSS
@@ -418,7 +447,15 @@ class SpaceFighterGame:
     def _maybe_drop_powerup(self, enemy: Enemy) -> None:
         if self.rng.random() > self.config.powerup_drop_chance:
             return
-        kind = POWERUP_WEAPON if self.rng.random() < 0.62 else POWERUP_SHIELD
+        roll = self.rng.random()
+        if roll < 0.45:
+            kind = POWERUP_WEAPON
+        elif roll < 0.70:
+            kind = POWERUP_SHIELD
+        elif roll < 0.88:
+            kind = POWERUP_HEAL
+        else:
+            kind = POWERUP_BOMB
         size = 30.0
         self.powerups.append(PowerUp(kind, Rect(enemy.rect.x + enemy.rect.w * 0.5 - size * 0.5, enemy.rect.y + enemy.rect.h * 0.5, size, size)))
         self.powerup_event_id += 1
@@ -427,26 +464,34 @@ class SpaceFighterGame:
         for bullet in self.enemy_bullets:
             if bullet.active and bullet.rect.intersects(self.player):
                 bullet.active = False
-                self._damage_player()
+                self._damage_player(self.config.bullet_damage_to_player)
 
         for enemy in self.enemies:
             if enemy.active and enemy.rect.intersects(self.player):
                 enemy.active = False
-                self._damage_player()
+                self._damage_player(self.config.collision_damage_to_player)
 
         if self.boss is not None and self.boss.active and self.boss.rect.intersects(self.player):
-            self._damage_player()
+            self._damage_player(self.config.collision_damage_to_player)
 
-    def _damage_player(self) -> None:
-        if self.shield > 0:
-            self.shield -= 1
-        else:
-            self.lives -= 1
+    def _damage_player(self, damage: int) -> bool:
+        if self.invincible_timer_s > 0.0 or self.state == GAME_OVER:
+            return False
+        self.hp -= max(0, int(damage))
         self.player_hit_event_id += 1
+        if self.hp > 0:
+            return True
+        self.lives -= 1
         if self.lives <= 0:
             self.lives = 0
+            self.hp = 0
             self.state = GAME_OVER
             self._update_high_score()
+            return True
+        self.hp = self.config.hp_per_life
+        self.invincible_timer_s = self.config.invincible_s
+        self.floating_texts.append(FloatingText("INVINCIBLE", self.player_center, 0.8, (104, 230, 255)))
+        return True
 
     def _collide_powerups(self) -> None:
         for powerup in self.powerups:
@@ -456,12 +501,16 @@ class SpaceFighterGame:
             if powerup.kind == POWERUP_WEAPON:
                 self.weapon_level = min(self.config.max_weapon_level, self.weapon_level + 1)
             elif powerup.kind == POWERUP_SHIELD:
-                self.shield = min(self.config.max_shield, self.shield + 1)
+                self.invincible_timer_s = max(self.invincible_timer_s, self.config.invincible_s)
             elif powerup.kind == POWERUP_HEAL:
-                self.lives = min(self.config.max_lives, self.lives + 1)
+                self.hp = min(self.config.hp_per_life, self.hp + self.config.heal_amount)
             elif powerup.kind == POWERUP_BOMB:
                 for enemy in self.enemies:
-                    enemy.active = False
+                    if enemy.active:
+                        enemy.active = False
+                        self.score += enemy.score
+                if self.boss is not None and self.boss.active:
+                    self.boss.hp = max(1, self.boss.hp - 8)
                 self.enemy_bullets = []
             self.powerup_collect_event_id += 1
 
