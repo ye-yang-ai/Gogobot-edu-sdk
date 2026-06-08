@@ -17,6 +17,7 @@ if str(_REPO_ROOT) not in sys.path:
 
 from aidog_sdk.game.brick_breaker.core import (
     CALIBRATING,
+    CHALLENGE_CLEAR,
     GAME_OVER,
     LEVEL_CLEAR,
     READY,
@@ -95,6 +96,8 @@ def run_game(args: argparse.Namespace) -> int:
     calibration_started_s = 0.0
     last_high_score = game.high_score
     handled_fruit_event_id = 0
+    handled_fruit_collect_event_id = 0
+    handled_challenge_clear_event_id = 0
     handled_level_clear_event_id = 0
     handled_score_celebration_event_id = 0
 
@@ -125,7 +128,8 @@ def run_game(args: argparse.Namespace) -> int:
                 reader.update(pg.key.get_pressed(), pg)
 
             mouse_pos = pg.mouse.get_pos()
-            mouse_over_button = (
+            buttons_visible = renderer.buttons_visible(game)
+            mouse_over_button = buttons_visible and (
                 renderer.restart_button_rect.collidepoint(mouse_pos)
                 or renderer.prepare_button_rect.collidepoint(mouse_pos)
             )
@@ -146,14 +150,14 @@ def run_game(args: argparse.Namespace) -> int:
                             game.start_running()
                         elif game.state == LEVEL_CLEAR:
                             game.start_next_level()
-                        elif game.state == GAME_OVER:
+                        elif game.state in (CHALLENGE_CLEAR, GAME_OVER):
                             game.ready()
-                elif event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
+                elif buttons_visible and event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
                     if renderer.restart_button_rect.collidepoint(event.pos):
                         renderer.pressed_button = "restart"
                     elif renderer.prepare_button_rect.collidepoint(event.pos):
                         renderer.pressed_button = "prepare"
-                elif event.type == pg.MOUSEBUTTONUP and event.button == 1:
+                elif buttons_visible and event.type == pg.MOUSEBUTTONUP and event.button == 1:
                     pressed = renderer.pressed_button
                     renderer.pressed_button = None
                     if pressed == "restart" and renderer.restart_button_rect.collidepoint(event.pos):
@@ -194,17 +198,27 @@ def run_game(args: argparse.Namespace) -> int:
                 handled_score_celebration_event_id = game.score_celebration_event_id
             if game.fruit_event_id > handled_fruit_event_id:
                 handled_fruit_event_id = game.fruit_event_id
-                renderer.celebrate("Power Fruit!", now_s)
-                run_reader_action_async("play_reward_feedback")
             elif game.fruit_event_id < handled_fruit_event_id:
                 handled_fruit_event_id = game.fruit_event_id
+            if game.fruit_collect_event_id > handled_fruit_collect_event_id:
+                handled_fruit_collect_event_id = game.fruit_collect_event_id
+                renderer.celebrate("Power Fruit!", now_s)
+                run_reader_action_async("play_reward_feedback")
+            elif game.fruit_collect_event_id < handled_fruit_collect_event_id:
+                handled_fruit_collect_event_id = game.fruit_collect_event_id
             if game.level_clear_event_id > handled_level_clear_event_id:
                 handled_level_clear_event_id = game.level_clear_event_id
                 renderer.celebrate("LEVEL CLEAR!", now_s)
                 run_reader_action_async("play_reward_feedback")
             elif game.level_clear_event_id < handled_level_clear_event_id:
                 handled_level_clear_event_id = game.level_clear_event_id
-            if game.state == GAME_OVER and game.high_score > last_high_score:
+            if game.challenge_clear_event_id > handled_challenge_clear_event_id:
+                handled_challenge_clear_event_id = game.challenge_clear_event_id
+                renderer.celebrate("CHALLENGE CLEAR!", now_s)
+                run_reader_action_async("play_reward_feedback")
+            elif game.challenge_clear_event_id < handled_challenge_clear_event_id:
+                handled_challenge_clear_event_id = game.challenge_clear_event_id
+            if game.state in (CHALLENGE_CLEAR, GAME_OVER) and game.high_score > last_high_score:
                 if score_store.save_if_higher(game.high_score):
                     last_high_score = game.high_score
             renderer.draw(game, last_control_roll, imu_ok)

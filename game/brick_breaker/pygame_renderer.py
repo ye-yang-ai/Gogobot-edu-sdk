@@ -8,7 +8,7 @@ import time
 from dataclasses import dataclass
 from typing import Optional, Tuple
 
-from .core import CALIBRATING, GAME_OVER, LEVEL_CLEAR, READY, RUNNING, WAIT_IMU, BrickBreakerGame
+from .core import CALIBRATING, CHALLENGE_CLEAR, GAME_OVER, LEVEL_CLEAR, READY, RUNNING, WAIT_IMU, BrickBreakerGame
 
 
 @dataclass
@@ -36,8 +36,8 @@ class PygameRenderer:
         self.small_font = pygame.font.SysFont("Microsoft YaHei", 14)
         self.score_font = pygame.font.SysFont("Segoe UI", 34, bold=True)
         self.title_font = pygame.font.SysFont("Segoe UI", 28, bold=True)
-        self.restart_button_rect = pygame.Rect(28, 96, 132, 30)
-        self.prepare_button_rect = pygame.Rect(28, 136, 160, 30)
+        self.restart_button_rect = pygame.Rect(28, 128, 132, 30)
+        self.prepare_button_rect = pygame.Rect(28, 168, 160, 30)
         self.pressed_button: Optional[str] = None
         self.feedback_message = ""
         self.feedback_until_s = 0.0
@@ -75,9 +75,11 @@ class PygameRenderer:
     def draw(self, game: BrickBreakerGame, roll_deg: float, imu_ok: bool) -> None:
         self._draw_background()
         self._draw_hud(game, imu_ok)
-        self._draw_buttons()
+        self._draw_buttons(game)
         self._draw_bricks(game)
+        self._draw_stones(game)
         self._draw_arena_line()
+        self._draw_fruits(game)
         self._draw_balls(game)
         self._draw_paddle(game)
         self._draw_roll_bar(roll_deg)
@@ -107,6 +109,7 @@ class PygameRenderer:
         self._draw_label("SCORE", 28, 24)
         score = self.score_font.render(f"{game.score:04d}", True, (248, 250, 252))
         self.screen.blit(score, (28, 42))
+        self._draw_lives(game)
         best = self.small_font.render(f"历史最高分：{game.high_score}", True, (254, 243, 199))
         self.screen.blit(best, (self.width - best.get_width() - 28, 30))
         link_text = "LINK OK" if imu_ok else "WAIT IMU"
@@ -115,6 +118,19 @@ class PygameRenderer:
         self.screen.blit(link, (self.width - link.get_width() - 28, 54))
         level = self.small_font.render(f"LEVEL {game.level:02d}", True, (191, 219, 254))
         self.screen.blit(level, (self.width - level.get_width() - 28, 78))
+
+    def _draw_lives(self, game: BrickBreakerGame) -> None:
+        pg = self.pygame
+        x = 28
+        y = 88
+        label = self.small_font.render(f"生命值 {game.lives}/{game.config.initial_lives}", True, (203, 213, 225))
+        self.screen.blit(label, (28, 82))
+        for index in range(max(1, game.config.initial_lives)):
+            rect = pg.Rect(x + index * 18, y + 20, 12, 12)
+            fill = (251, 191, 36) if index < game.lives else (30, 41, 59)
+            border = (254, 243, 199) if index < game.lives else (71, 85, 105)
+            pg.draw.rect(self.screen, fill, rect, border_radius=2)
+            pg.draw.rect(self.screen, border, rect, 1, border_radius=2)
 
     def _draw_bricks(self, game: BrickBreakerGame) -> None:
         colors = (
@@ -139,6 +155,15 @@ class PygameRenderer:
                 self.pygame.draw.line(self.screen, (255, 255, 255), (cx - 6, cy), (cx + 6, cy), 1)
                 self.pygame.draw.line(self.screen, (255, 255, 255), (cx, cy - 6), (cx, cy + 6), 1)
 
+    def _draw_stones(self, game: BrickBreakerGame) -> None:
+        pg = self.pygame
+        for stone in game.stones:
+            rect = pg.Rect(int(stone.x), int(stone.y), int(stone.w), int(stone.h))
+            pg.draw.rect(self.screen, (71, 85, 105), rect)
+            pg.draw.rect(self.screen, (148, 163, 184), rect, 1)
+            pg.draw.line(self.screen, (30, 41, 59), rect.topleft, rect.bottomright, 2)
+            pg.draw.line(self.screen, (100, 116, 139), (rect.left + 4, rect.top + 4), (rect.right - 4, rect.top + 4), 1)
+
     def _draw_arena_line(self) -> None:
         y = int(self.height * 0.52)
         left = int(self.width * 0.07)
@@ -148,6 +173,53 @@ class PygameRenderer:
     def _draw_balls(self, game: BrickBreakerGame) -> None:
         for ball in game.balls:
             self._draw_ball(game, ball.pos.x, ball.pos.y)
+
+    def _draw_fruits(self, game: BrickBreakerGame) -> None:
+        for fruit in game.fruits:
+            self._draw_fruit(game, fruit.pos.x, fruit.pos.y, fruit.kind)
+
+    def _draw_fruit(self, game: BrickBreakerGame, fruit_x: float, fruit_y: float, food: str) -> None:
+        pg = self.pygame
+        x = int(fruit_x)
+        y = int(fruit_y)
+        r = int(game.config.fruit_radius)
+        glow = pg.Surface((r * 5, r * 5), pg.SRCALPHA)
+        pg.draw.circle(glow, (245, 158, 11, 95), (r * 2, r * 2), r * 2)
+        self.screen.blit(glow, (x - r * 2, y - r * 2))
+        if food == "apple":
+            pg.draw.circle(self.screen, (239, 68, 68), (x, y + 1), r)
+            pg.draw.circle(self.screen, (254, 202, 202), (x - 4, y - 4), 3)
+            pg.draw.line(self.screen, (120, 53, 15), (x, y - r), (x + 3, y - r - 6), 3)
+            pg.draw.ellipse(self.screen, (34, 197, 94), (x + 2, y - r - 8, 10, 7))
+        elif food == "banana":
+            arc_rect = (x - r - 3, y - r, (r + 3) * 2, r * 2)
+            pg.draw.arc(self.screen, (245, 158, 11), arc_rect, 0.2, 3.9, 8)
+            pg.draw.arc(self.screen, (253, 224, 71), arc_rect, 0.3, 3.7, 4)
+        elif food == "carrot":
+            points = [(x - r, y - 2), (x + r, y - 7), (x - 2, y + r + 3)]
+            pg.draw.polygon(self.screen, (249, 115, 22), points)
+            pg.draw.polygon(self.screen, (22, 163, 74), [(x + 7, y - 8), (x + 16, y - 18), (x + 12, y - 5)])
+        elif food == "pumpkin":
+            pg.draw.circle(self.screen, (249, 115, 22), (x, y), r)
+            pg.draw.circle(self.screen, (254, 215, 170), (x - 4, y - 4), 3)
+            pg.draw.arc(self.screen, (194, 65, 12), (x - r, y - r, r * 2, r * 2), -1.2, 1.2, 2)
+            pg.draw.arc(self.screen, (194, 65, 12), (x - r // 2, y - r, r, r * 2), -1.4, 1.4, 2)
+            pg.draw.line(self.screen, (101, 67, 33), (x, y - r), (x + 2, y - r - 6), 3)
+        elif food == "chicken":
+            pg.draw.circle(self.screen, (251, 146, 60), (x - 3, y), r)
+            pg.draw.circle(self.screen, (254, 226, 226), (x + r - 2, y - 4), 5)
+            pg.draw.circle(self.screen, (254, 226, 226), (x + r + 2, y + 4), 5)
+            pg.draw.line(self.screen, (180, 83, 9), (x + 4, y), (x + r + 4, y), 4)
+        elif food == "cheese":
+            points = [(x - r, y + r), (x + r + 2, y), (x - r, y - r)]
+            pg.draw.polygon(self.screen, (250, 204, 21), points)
+            for hx, hy in ((x - 4, y - 3), (x, y + 5), (x + 6, y)):
+                pg.draw.circle(self.screen, (202, 138, 4), (hx, hy), 2)
+        else:
+            rect = pg.Rect(x - r, y - r, r * 2, r * 2)
+            pg.draw.rect(self.screen, (180, 120, 70), rect, border_radius=6)
+            pg.draw.circle(self.screen, (120, 76, 36), (x - 4, y - 2), 2)
+            pg.draw.circle(self.screen, (120, 76, 36), (x + 4, y + 3), 2)
 
     def _draw_ball(self, game: BrickBreakerGame, ball_x: float, ball_y: float) -> None:
         pg = self.pygame
@@ -188,13 +260,18 @@ class PygameRenderer:
         dot_x = int(x + width * 0.5 + ratio * width * 0.5)
         pg.draw.rect(self.screen, (248, 250, 252), (dot_x - 4, y - 3, 8, 12))
 
-    def _draw_buttons(self) -> None:
+    def buttons_visible(self, game: BrickBreakerGame) -> bool:
+        return game.state in (WAIT_IMU, CALIBRATING, READY)
+
+    def _draw_buttons(self, game: BrickBreakerGame) -> None:
+        if not self.buttons_visible(game):
+            return
         mouse_pos = self.pygame.mouse.get_pos()
         self._draw_button(self.restart_button_rect, "重启WS监听", "restart", mouse_pos)
         self._draw_button(self.prepare_button_rect, "重新准备机器狗", "prepare", mouse_pos)
         if self.feedback_message and time.monotonic() < self.feedback_until_s:
             surface = self.small_font.render(self.feedback_message, True, (251, 191, 36))
-            self.screen.blit(surface, (self.prepare_button_rect.x, self.prepare_button_rect.bottom + 10))
+            self.screen.blit(surface, (self.prepare_button_rect.x, self.prepare_button_rect.bottom + 1))
 
     def _draw_button(self, rect, label: str, button_id: str, mouse_pos: Tuple[int, int]) -> None:
         pg = self.pygame
@@ -225,6 +302,7 @@ class PygameRenderer:
             CALIBRATING: "校准中，请保持当前姿态",
             READY: "按空格开始，按 R 重新校准",
             LEVEL_CLEAR: f"LEVEL CLEAR! 第 {game.level} 关完成，按空格进入下一关",
+            CHALLENGE_CLEAR: f"CHALLENGE CLEAR! 三关完成，本局 {game.score} 分，按空格重新挑战",
             RUNNING: "",
             GAME_OVER: f"挑战结束，本局 {game.score} 分，按空格重来",
         }
