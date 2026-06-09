@@ -89,7 +89,20 @@ python tools/user_control_ws.py
 
 该工具的连接方式与 WebSocket examples 一致：PC 侧监听 `0.0.0.0:8766`，机器狗作为 WebSocket client 连入。
 
-## 6. 下一步示例
+## 6. 试玩小游戏
+
+先安装 pygame，并优先用键盘模式确认窗口和玩法正常：
+
+```bash
+pip install pygame
+python game/balance_ball/aidog_balance_ball_game.py --transport keyboard
+python game/brick_breaker/aidog_brick_breaker_game.py --transport keyboard
+python game/space_fighter/aidog_space_fighter_game.py
+```
+
+WebSocket IMU、BLE IMU、分数保存和常用参数见：[小游戏说明](games.zh_CN.md)。
+
+## 7. 下一步示例
 
 - `examples/01_connection/bluetooth/ble_scan_and_connect.py`：BLE 扫描和连接。
 - `examples/01_connection/websocket/ws_connection_test.py`：等待机器狗连接 PC WebSocket host。
