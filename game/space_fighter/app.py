@@ -77,6 +77,14 @@ def run_game(args: argparse.Namespace) -> int:
     saved_stage_score = False
     ws_lock = threading.Lock()
     ws_starting = False
+    handled_powerup_collect_event_id = 0
+    handled_player_hit_event_id = 0
+    handled_player_life_lost_event_id = 0
+    handled_boss_warning_event_id = 0
+    handled_boss_defeat_event_id = 0
+    last_game_state = game.state
+    last_hit_feedback_s = -999.0
+    last_powerup_feedback_s = -999.0
 
     def start_ws_async(restart: bool = False) -> None:
         nonlocal imu_reader, ws_starting
@@ -117,6 +125,17 @@ def run_game(args: argparse.Namespace) -> int:
 
         threading.Thread(target=worker, daemon=True, name="aidog-space-fighter-prepare").start()
 
+    def run_reader_action_async(action_name: str, *params) -> None:
+        if input_mode != INPUT_AIDOG:
+            return
+        reader = imu_reader
+        if reader is None or not reader.is_connected():
+            return
+        action = getattr(reader, action_name, None)
+        if not callable(action):
+            return
+        threading.Thread(target=action, args=params, daemon=True, name=f"aidog-space-fighter-{action_name}").start()
+
     if input_mode == INPUT_AIDOG:
         start_ws_async()
 
@@ -153,6 +172,7 @@ def run_game(args: argparse.Namespace) -> int:
                             if input_mode == INPUT_AIDOG:
                                 start_ws_async()
                             game.start_game()
+                            run_reader_action_async("play_start_feedback")
                             saved_game_over_score = False
                             saved_stage_score = False
                         elif game.state == STAGE_CLEAR:
@@ -201,6 +221,47 @@ def run_game(args: argparse.Namespace) -> int:
             if game.state == STAGE_CLEAR and not saved_stage_score:
                 score_store.save_if_higher(game.score)
                 saved_stage_score = True
+
+            if game.powerup_collect_event_id > handled_powerup_collect_event_id:
+                handled_powerup_collect_event_id = game.powerup_collect_event_id
+                if now_s - last_powerup_feedback_s >= 0.35:
+                    run_reader_action_async("play_powerup_feedback", game.last_powerup_collect_kind)
+                    last_powerup_feedback_s = now_s
+            elif game.powerup_collect_event_id < handled_powerup_collect_event_id:
+                handled_powerup_collect_event_id = game.powerup_collect_event_id
+
+            if game.player_life_lost_event_id > handled_player_life_lost_event_id:
+                handled_player_life_lost_event_id = game.player_life_lost_event_id
+                run_reader_action_async("play_hit_feedback", True)
+                last_hit_feedback_s = now_s
+                handled_player_hit_event_id = game.player_hit_event_id
+            elif game.player_life_lost_event_id < handled_player_life_lost_event_id:
+                handled_player_life_lost_event_id = game.player_life_lost_event_id
+
+            if game.player_hit_event_id > handled_player_hit_event_id:
+                handled_player_hit_event_id = game.player_hit_event_id
+                if now_s - last_hit_feedback_s >= 1.0:
+                    run_reader_action_async("play_hit_feedback", False)
+                    last_hit_feedback_s = now_s
+            elif game.player_hit_event_id < handled_player_hit_event_id:
+                handled_player_hit_event_id = game.player_hit_event_id
+
+            if game.boss_warning_event_id > handled_boss_warning_event_id:
+                handled_boss_warning_event_id = game.boss_warning_event_id
+                run_reader_action_async("play_boss_warning_feedback")
+            elif game.boss_warning_event_id < handled_boss_warning_event_id:
+                handled_boss_warning_event_id = game.boss_warning_event_id
+
+            if game.boss_defeat_event_id > handled_boss_defeat_event_id:
+                handled_boss_defeat_event_id = game.boss_defeat_event_id
+                run_reader_action_async("play_stage_clear_feedback", game.stage >= game.config.max_stage)
+            elif game.boss_defeat_event_id < handled_boss_defeat_event_id:
+                handled_boss_defeat_event_id = game.boss_defeat_event_id
+
+            if last_game_state != game.state:
+                if game.state == GAME_OVER:
+                    run_reader_action_async("play_game_over_feedback")
+                last_game_state = game.state
 
             renderer.draw(game, input_mode, current_imu_status)
             renderer.tick(60)

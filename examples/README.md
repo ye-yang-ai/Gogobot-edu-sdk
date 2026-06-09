@@ -96,6 +96,10 @@ examples/
 
 Read `../docs/safety.md` before running medium or high-risk examples.
 
+## Mini Games
+
+PC-side mini games live outside `examples/` in `../game/`. See `../docs/games.md` for Balance Ball, Brick Breaker, and Space Fighter commands.
+
 ## Control Panels
 
 - `../tools/user_control_ble.py`: BLE upper-computer panel.

@@ -147,9 +147,12 @@ class SpaceFighterGame:
         self.enemy_destroyed_event_id = 0
         self.powerup_event_id = 0
         self.powerup_collect_event_id = 0
+        self.last_powerup_collect_kind: Optional[str] = None
+        self.boss_warning_event_id = 0
         self.boss_spawn_event_id = 0
         self.boss_defeat_event_id = 0
         self.player_hit_event_id = 0
+        self.player_life_lost_event_id = 0
         self.reset_round()
 
     def reset_round(self) -> None:
@@ -161,6 +164,7 @@ class SpaceFighterGame:
         self.hp = max(1, int(cfg.hp_per_life))
         self.invincible_timer_s = 0.0
         self.weapon_level = 1
+        self.last_powerup_collect_kind = None
         self.player.x = (cfg.width - cfg.player_w) * 0.5
         self.player.y = cfg.height - cfg.player_h - 34.0
         self.enemies = []
@@ -395,6 +399,7 @@ class SpaceFighterGame:
         self.state = BOSS_WARNING
         self.warning_timer_s = 0.0
         self.enemy_bullets = []
+        self.boss_warning_event_id += 1
 
     def _spawn_boss(self) -> None:
         cfg = self.config
@@ -495,6 +500,7 @@ class SpaceFighterGame:
             return True
         self.hp = self.config.hp_per_life
         self.invincible_timer_s = self.config.invincible_s
+        self.player_life_lost_event_id += 1
         self.floating_texts.append(FloatingText("INVINCIBLE", self.player_center, 0.8, (104, 230, 255)))
         return True
 
@@ -503,6 +509,7 @@ class SpaceFighterGame:
             if not powerup.active or not powerup.rect.intersects(self.player):
                 continue
             powerup.active = False
+            self.last_powerup_collect_kind = powerup.kind
             if powerup.kind == POWERUP_WEAPON:
                 self.weapon_level = min(self.config.max_weapon_level, self.weapon_level + 1)
             elif powerup.kind == POWERUP_SHIELD:

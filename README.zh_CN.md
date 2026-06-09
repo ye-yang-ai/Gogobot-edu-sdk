@@ -16,6 +16,7 @@
 - 通过 Dev PC WebSocket 在局域网接收传感器 JSON 和双向 PCM 音频。
 - WebSocket 控制 action、ear、expression、audio、特殊状态检测、movement 和 sensor stream。
 - 面向高级动作编排的机身、足端、关节平滑调节 API。
+- PC 端 pygame 小游戏，支持键盘试玩和机器狗 IMU 体感控制。
 - 面向教师、学生、实验室和课程平台的示例脚本与上位机工具。
 
 ## 环境要求
@@ -27,6 +28,8 @@
   - `websockets`
   - `sounddevice`
   - `numpy`
+- 可选小游戏依赖：
+  - `pygame`
 
 ## 安装
 
@@ -141,9 +144,23 @@ logging.basicConfig(level=logging.INFO)
 
 完整示例索引见：[示例说明](examples/README.md)。
 
+## 小游戏
+
+`game/` 目录包含平衡球、打砖块和星际飞机三个 PC 端小游戏。建议先用键盘模式确认窗口和玩法正常，再切换到 BLE 或 WebSocket IMU 控制。
+
+```bash
+pip install pygame
+python game/balance_ball/aidog_balance_ball_game.py --transport keyboard
+python game/brick_breaker/aidog_brick_breaker_game.py --transport keyboard
+python game/space_fighter/aidog_space_fighter_game.py
+```
+
+IMU 配置、运行命令和常用参数见：[小游戏说明](docs/games.zh_CN.md)。
+
 ## 文档
 
 - [快速开始](docs/quick_start.zh_CN.md)
+- [小游戏说明](docs/games.zh_CN.md)
 - [演示视频](docs/demo_videos.md)
 - [BLE 连接说明](docs/connection_ble.md)
 - [API 参考](docs/api_reference.md)
@@ -160,6 +177,7 @@ logging.basicConfig(level=logging.INFO)
 aidog_sdk/
 ├── aidog_sdk/                 # Python SDK 包
 ├── examples/                  # 可运行的 EDU 示例
+├── game/                      # PC 端小游戏
 ├── tools/                     # 工具脚本和上位机
 ├── docs/                      # 用户、协议、安全和素材文档
 ├── README.md                  # 英文入口

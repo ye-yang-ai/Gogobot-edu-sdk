@@ -60,7 +60,20 @@ with AiDog() as dog:
     print("action_done:", ok)
 ```
 
-## 5. Next Examples
+## 5. Try Mini Games
+
+Install pygame and start with keyboard mode before using robot IMU control:
+
+```bash
+pip install pygame
+python game/balance_ball/aidog_balance_ball_game.py --transport keyboard
+python game/brick_breaker/aidog_brick_breaker_game.py --transport keyboard
+python game/space_fighter/aidog_space_fighter_game.py
+```
+
+Read [Mini Games](games.md) for WebSocket IMU, BLE IMU, scoring, and common options.
+
+## 6. Next Examples
 
 - `examples/01_connection/bluetooth/ble_scan_and_connect.py`: BLE scan and connection.
 - `examples/02_actions/bluetooth/ble_basic_actions.py`: one high-level action.

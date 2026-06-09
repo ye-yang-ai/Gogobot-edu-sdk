@@ -15,6 +15,7 @@ Python SDK for the **Changba AI-Dog / Gogobot EDU** quadruped robot. It provides
 - IMU and TOF sensor streaming through BLE `ae04` notifications.
 - Dev PC WebSocket host for LAN sensor JSON and bidirectional PCM audio.
 - Smooth pose, foot, and joint adjustment APIs for advanced choreography.
+- PC-side pygame mini games for keyboard and robot IMU interaction.
 - EDU-oriented examples for teachers, students, labs, and course platforms.
 
 ## Requirements
@@ -26,6 +27,8 @@ Python SDK for the **Changba AI-Dog / Gogobot EDU** quadruped robot. It provides
   - `websockets`
   - `sounddevice`
   - `numpy`
+- Optional mini-game dependency:
+  - `pygame`
 
 ## Installation
 
@@ -110,9 +113,23 @@ Use `logging.DEBUG` when troubleshooting BLE discovery and notification setup.
 
 Full example index: [Examples](examples/README.md).
 
+## Mini Games
+
+The `game/` directory includes Balance Ball, Brick Breaker, and Space Fighter demos. Start with keyboard mode, then switch to BLE or WebSocket IMU control after the window opens correctly.
+
+```bash
+pip install pygame
+python game/balance_ball/aidog_balance_ball_game.py --transport keyboard
+python game/brick_breaker/aidog_brick_breaker_game.py --transport keyboard
+python game/space_fighter/aidog_space_fighter_game.py
+```
+
+See [Mini Games](docs/games.md) for IMU setup, commands, and common options.
+
 ## Documentation
 
 - [Quick Start](docs/quick_start.en.md)
+- [Mini Games](docs/games.md)
 - [Demo Videos](docs/demo_videos.md)
 - [BLE Connection Guide](docs/connection_ble.md)
 - [API Reference](docs/api_reference.md)
@@ -129,6 +146,7 @@ Full example index: [Examples](examples/README.md).
 aidog_sdk/
 ├─ aidog_sdk/                 # Python SDK package
 ├─ examples/                  # Runnable EDU examples
+├─ game/                      # PC-side mini games
 ├─ tools/                     # Utility scripts
 ├─ docs/                      # User, protocol, safety, and asset docs
 ├─ README.md                  # English entry

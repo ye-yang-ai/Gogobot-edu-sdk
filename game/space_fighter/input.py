@@ -10,6 +10,12 @@ from typing import Dict, Optional, Tuple
 
 INPUT_KEYBOARD = "keyboard"
 INPUT_AIDOG = "aidog"
+POWERUP_FEEDBACK = {
+    "weapon": ("AGREE", "PRIDE", "EAR_FLICK_EXCITED"),
+    "shield": ("CURIOUS", "HAPPY_01", "EAR_STAND_LEFT_AND_RIGHT"),
+    "heal": ("AGREE", "CARING", "EAR_WIGGLE_SUBTLE_SELF_STABLE"),
+    "bomb": ("JEEZ", "ALERT", "EAR_FLICK_LEFT_AND_RIGHT_UP"),
+}
 
 
 class LatestImuAngles:
@@ -165,6 +171,29 @@ class WsImuReader:
                 return False
         return self._send_pose_action(dog)
 
+    def play_start_feedback(self) -> bool:
+        return self._send_feedback("WAKE_UP", "EYES_FIGHTING", "EAR_STAND")
+
+    def play_powerup_feedback(self, kind: Optional[str]) -> bool:
+        audio, expression, ear = POWERUP_FEEDBACK.get(str(kind), ("AGREE", "HAPPY_01", "EAR_FLICK_RANDOM_POSITIVE"))
+        return self._send_feedback(audio, expression, ear)
+
+    def play_hit_feedback(self, life_lost: bool = False) -> bool:
+        if life_lost:
+            return self._send_feedback("JEEZ", "SHAME", "EAR_DOWN")
+        return self._send_feedback("HENG", "NERVOUS", "EAR_FLICK_RANDOM_NEGATIVE")
+
+    def play_boss_warning_feedback(self) -> bool:
+        return self._send_feedback("WAKE_UP", "ALERT", "EAR_STAND")
+
+    def play_stage_clear_feedback(self, final: bool = False) -> bool:
+        if final:
+            return self._send_feedback("WAKE_UP", "LOVE_01", "EAR_FLICK_LEFT_AND_RIGHT_UP")
+        return self._send_feedback("AGREE", "PRIDE", "EAR_FLICK_RANDOM_POSITIVE")
+
+    def play_game_over_feedback(self) -> bool:
+        return self._send_feedback("SAD", "SHAME", "EAR_DOWN")
+
     def _on_imu(self, imu: Dict[str, object]) -> None:
         pitch = imu.get("pitch_deg")
         roll = imu.get("roll_deg")
@@ -195,6 +224,44 @@ class WsImuReader:
 
             action = int(resolve_action(self.pose_action))
             dog.send_interaction(action, transport="ws")
+            return True
+        except Exception:
+            return False
+
+    def _send_feedback(self, audio_name: str, expression_name: str, ear_name: str) -> bool:
+        with self._lock:
+            dog = self.dog
+            host = self.host
+            if dog is None or host is None or not host.is_robot_connected:
+                return False
+        ok = self._send_audio(dog, audio_name)
+        ok = self._send_expression(dog, expression_name) or ok
+        ok = self._send_ear(dog, ear_name) or ok
+        return ok
+
+    def _send_audio(self, dog, name: str) -> bool:
+        try:
+            from aidog_sdk import Tone
+
+            dog.send_audio(getattr(Tone, name), transport="ws")
+            return True
+        except Exception:
+            return False
+
+    def _send_expression(self, dog, name: str) -> bool:
+        try:
+            from aidog_sdk import ExpressionAction
+
+            dog.send_expression(getattr(ExpressionAction, name), transport="ws")
+            return True
+        except Exception:
+            return False
+
+    def _send_ear(self, dog, name: str) -> bool:
+        try:
+            from aidog_sdk import EarAction
+
+            dog.send_ear(getattr(EarAction, name), transport="ws")
             return True
         except Exception:
             return False
