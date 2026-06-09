@@ -14,15 +14,21 @@
 
 ### 平衡球
 
-![平衡球游戏界面](assets/images/balance_ball_game.png)
+<p align="center">
+  <img src="assets/images/balance_ball_game.png" alt="平衡球游戏界面" width="75%">
+</p>
 
 ### 打砖块
 
-![打砖块游戏界面](assets/images/brick_breaker_game.png)
+<p align="center">
+  <img src="assets/images/brick_breaker_game.png" alt="打砖块游戏界面" width="75%">
+</p>
 
 ### 星际飞机
 
-![星际飞机游戏界面](assets/images/space_fighter_game.png)
+<p align="center">
+  <img src="assets/images/space_fighter_game.png" alt="星际飞机游戏界面" width="75%">
+</p>
 
 ## 安装依赖
 

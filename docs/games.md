@@ -14,15 +14,21 @@ The `game/` directory contains three PC-side pygame mini games that can be used 
 
 ### Balance Ball
 
-![Balance Ball game UI](assets/images/balance_ball_game.png)
+<p align="center">
+  <img src="assets/images/balance_ball_game.png" alt="Balance Ball game UI" width="75%">
+</p>
 
 ### Brick Breaker
 
-![Brick Breaker game UI](assets/images/brick_breaker_game.png)
+<p align="center">
+  <img src="assets/images/brick_breaker_game.png" alt="Brick Breaker game UI" width="75%">
+</p>
 
 ### Space Fighter
 
-![Space Fighter game UI](assets/images/space_fighter_game.png)
+<p align="center">
+  <img src="assets/images/space_fighter_game.png" alt="Space Fighter game UI" width="75%">
+</p>
 
 ## Install
 
