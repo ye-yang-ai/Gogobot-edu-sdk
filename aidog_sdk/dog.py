@@ -718,7 +718,7 @@ class AiDog:
     ) -> None:
         """Send interaction action with optional param."""
         action_value = int(action_id)
-        data = [action_value & 0xFF]
+        data = [action_value & 0xFF, 0]
         if param is not None:
             try:
                 is_angle_action = Action(action_value) in ANGLE_BASED
@@ -726,9 +726,9 @@ class AiDog:
                 is_angle_action = False
             if is_angle_action:
                 value = max(0, min(65535, int(param)))
-                data.extend([value & 0xFF, (value >> 8) & 0xFF])
+                data[1:] = [value & 0xFF, (value >> 8) & 0xFF]
             else:
-                data.append(max(0, min(255, int(param))))
+                data[1] = max(0, min(255, int(param)))
         self._send_control(MODE_INTERACTION, data, transport=transport)
 
     def send_ear(self, ear_action_id: Union[int, EarAction], *, transport: str = "ble") -> None:
