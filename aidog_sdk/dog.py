@@ -54,7 +54,11 @@ CONFIG_SET_VOLUME = 1
 _SPECIAL_DETECTION_TOGGLE = 15
 _SPECIAL_DETECTION_ENABLE = 100
 _SPECIAL_DETECTION_DISABLE = 101
-_CONTROL_JSON_NOOP_MODE = 5
+_CONTROL_JSON_EDU_MODE = 5
+_CONTROL_JSON_NOOP_MODE = _CONTROL_JSON_EDU_MODE
+_EDU_WS_AUTO_ENTER_DELAY_S = 0.6
+_EDU_WS_AUTO_RETRY_DELAY_S = 0.8
+_EDU_WS_AUTO_RETRY_COUNT = 3
 
 _RADJ_SUB_POSE = 0x01
 _RADJ_SUB_FOOT = 0x02
@@ -121,8 +125,11 @@ class AiDog:
         on_notify: Optional[Callable[[bytes], None]] = None,
         *,
         imu_only_notify: bool = False,
+        auto_edu: bool = True,
+        edu_lease_ms: int = 8000,
     ):
         self._user_on_notify = on_notify
+        self._auto_edu = bool(auto_edu)
         self._ble = BleTransport(
             on_notify=self._on_notify,
             subscribe_ae02=True,
@@ -139,10 +146,42 @@ class AiDog:
         self._special_detection_enabled: Optional[bool] = None
         self._ws_control: Optional[Any] = None
         self._ws_control_seq = 0
+        self._edu_lock = threading.RLock()
+        self._edu_stop = threading.Event()
+        self._edu_thread: Optional[threading.Thread] = None
+        self._edu_transport = "ble"
+        self._edu_lease_ms = max(1000, int(edu_lease_ms))
+        self._edu_session_seq = 0
+        self._edu_maybe_active = False
 
     def attach_ws_control(self, ws_host: Any) -> None:
         """Attach a DevPcWebSocketHost for transport="ws" control."""
         self._ws_control = ws_host
+
+    def _auto_enter_edu_mode(self, transport: str) -> None:
+        if not self._auto_edu:
+            return
+        channel = str(transport).lower()
+        delay_s = _EDU_WS_AUTO_ENTER_DELAY_S if channel == "ws" else 0.0
+        retry_delay_s = _EDU_WS_AUTO_RETRY_DELAY_S if channel == "ws" else 0.0
+        retry_count = _EDU_WS_AUTO_RETRY_COUNT if channel == "ws" else 1
+        if delay_s > 0.0:
+            time.sleep(delay_s)
+        for attempt in range(1, retry_count + 1):
+            try:
+                self.enter_edu_mode(transport=channel, lease_ms=self._edu_lease_ms)
+                return
+            except Exception as exc:
+                logger.warning("Auto EDU enter failed on %s (%s/%s): %s", channel, attempt, retry_count, exc)
+                if attempt < retry_count and retry_delay_s > 0.0:
+                    time.sleep(retry_delay_s)
+
+    def _on_ws_robot_connected(self) -> None:
+        self._auto_enter_edu_mode("ws")
+
+    def _on_ws_robot_disconnected(self) -> None:
+        if self._edu_transport == "ws":
+            self.exit_edu_mode()
 
     def _send_control(self, mode: int, data: List[int], *, transport: str = "ble") -> None:
         channel = str(transport).lower()
@@ -167,6 +206,51 @@ class AiDog:
                     raise RuntimeError(f"WebSocket control rejected: {reason}")
             return
         raise ValueError(f"Unsupported transport: {transport!r}")
+
+    def _send_edu_session(self, action: str, *, transport: str = "ble", lease_ms: int = 8000) -> None:
+        channel = str(transport).lower()
+        lease_value = max(1000, int(lease_ms))
+        if channel == "ble":
+            payload: Dict[str, object] = {"mode": _CONTROL_JSON_NOOP_MODE, "lease_ms": lease_value}
+            if action == "heartbeat":
+                payload["edu_heartbeat"] = 1
+            else:
+                payload["edu_enable"] = 1 if action == "enter" else 0
+            self._ble.send_control_json(payload)
+            return
+        if channel == "ws":
+            if self._ws_control is None:
+                raise ConnectionError("WebSocket control is not attached.")
+            self._ws_control_seq += 1
+            command_id = f"dog-edu-{self._ws_control_seq}"
+            send_edu = getattr(self._ws_control, "send_edu_session", None)
+            if not callable(send_edu):
+                raise RuntimeError("WebSocket control does not support edu_session.")
+            send_edu(action, lease_ms=lease_value, command_id=command_id)
+            wait_ack = getattr(self._ws_control, "wait_ack", None)
+            if callable(wait_ack):
+                ack = wait_ack(command_id, timeout_s=1.2)
+                if ack is None:
+                    raise TimeoutError(f"WebSocket edu_session ack timeout: {command_id}")
+                if ack.get("result") != "accepted":
+                    reason = ack.get("reason_code", "unknown")
+                    raise RuntimeError(f"WebSocket edu_session rejected: {reason}")
+            return
+        raise ValueError(f"Unsupported transport: {transport!r}")
+
+    def _edu_heartbeat_loop(self, session_seq: int, stop_event: threading.Event) -> None:
+        while not stop_event.wait(max(0.5, self._edu_lease_ms / 3000.0)):
+            with self._edu_lock:
+                if session_seq != self._edu_session_seq:
+                    return
+            try:
+                self._send_edu_session(
+                    "heartbeat",
+                    transport=self._edu_transport,
+                    lease_ms=self._edu_lease_ms,
+                )
+            except Exception as exc:
+                logger.debug("EDU heartbeat failed: %s", exc)
 
     def _send_config(self, config: Dict[str, object], *, transport: str = "ble") -> None:
         channel = str(transport).lower()
@@ -380,14 +464,17 @@ class AiDog:
         if not ok:
             raise ConnectionError(f"Failed to connect to {address}.")
         logger.info("Connected to %s", address)
+        self._auto_enter_edu_mode("ble")
 
     def disconnect(self) -> None:
         """Disconnect from the device and release BLE resources."""
+        self.exit_edu_mode()
         self._ble.disconnect()
         logger.info("Disconnected.")
 
     def shutdown(self) -> None:
         """Disconnect and stop the background asyncio thread."""
+        self.exit_edu_mode()
         self._ble.shutdown()
 
     @property
@@ -709,6 +796,55 @@ class AiDog:
         self._ble.send_control_json(
             {"mode": _CONTROL_JSON_NOOP_MODE, "tof_enable": 1 if enable else 0}
         )
+
+    def enter_edu_mode(self, *, transport: str = "ble", lease_ms: int = 8000) -> None:
+        """
+        Enter firmware EDU mode and keep the lease alive.
+
+        EDU mode disables autonomous IMU/TOF safety business and idle random
+        actions while sensor streams continue to report real IMU/TOF values.
+        """
+        with self._edu_lock:
+            self.exit_edu_mode()
+            self._edu_session_seq += 1
+            session_seq = self._edu_session_seq
+            self._edu_transport = str(transport).lower()
+            self._edu_lease_ms = max(1000, int(lease_ms))
+            self._edu_maybe_active = True
+            self._send_edu_session("enter", transport=self._edu_transport, lease_ms=self._edu_lease_ms)
+            self._edu_stop = threading.Event()
+            self._edu_thread = threading.Thread(
+                target=self._edu_heartbeat_loop,
+                args=(session_seq, self._edu_stop),
+                daemon=True,
+                name="aidog-edu",
+            )
+            self._edu_thread.start()
+
+    def exit_edu_mode(self) -> None:
+        """Exit firmware EDU mode and stop the SDK heartbeat."""
+        with self._edu_lock:
+            transport = self._edu_transport
+            lease_ms = self._edu_lease_ms
+            should_send_exit = self._edu_maybe_active
+            self._edu_session_seq += 1
+            thread = self._edu_thread
+            stop_event = self._edu_stop
+            stop_event.set()
+            if thread is not None and thread.is_alive():
+                thread.join(timeout=2.0)
+            self._edu_thread = None
+            self._edu_maybe_active = False
+            if not should_send_exit:
+                return
+            try:
+                self._send_edu_session("exit", transport=transport, lease_ms=lease_ms)
+            except Exception as exc:
+                logger.debug("EDU exit failed: %s", exc)
+
+    def edu_session(self, *, transport: str = "ble", lease_ms: int = 8000) -> "_EduSession":
+        """Return a context manager for scoped EDU mode."""
+        return _EduSession(self, transport=transport, lease_ms=lease_ms)
 
     def send_expression(
         self,
@@ -1136,3 +1272,17 @@ class AiDog:
 
     def __exit__(self, *_) -> None:
         self.shutdown()
+
+
+class _EduSession:
+    def __init__(self, dog: AiDog, *, transport: str, lease_ms: int) -> None:
+        self._dog = dog
+        self._transport = transport
+        self._lease_ms = lease_ms
+
+    def __enter__(self) -> AiDog:
+        self._dog.enter_edu_mode(transport=self._transport, lease_ms=self._lease_ms)
+        return self._dog
+
+    def __exit__(self, *_) -> None:
+        self._dog.exit_edu_mode()

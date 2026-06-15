@@ -37,6 +37,9 @@ from aidog_sdk import (  # noqa: E402
 DEFAULT_BIND = "0.0.0.0"
 DEFAULT_PORT = 8766
 DEFAULT_CONNECT_TIMEOUT_S = 60.0
+EDU_ENTER_INITIAL_DELAY_S = 0.6
+EDU_ENTER_RETRY_DELAY_S = 0.8
+EDU_ENTER_RETRY_COUNT = 3
 PLOT_HISTORY_SECONDS = 12.0
 PLOT_REFRESH_MS = 100
 UI_POLL_MS = 80
@@ -54,7 +57,7 @@ class RobotController:
 
     def __init__(self, log_queue: "queue.Queue[str]") -> None:
         self.log_queue = log_queue
-        self.dog = AiDog(imu_only_notify=True)
+        self.dog = AiDog(imu_only_notify=True, auto_edu=False)
         self.host: Optional[DevPcWebSocketHost] = None
         self._lock = threading.RLock()
         self._closed = False
@@ -73,12 +76,30 @@ class RobotController:
                 self.host.stop()
                 self.host = None
             raise TimeoutError(f"等待机器狗连接 ws://{bind}:{port} 超时")
+        threading.Thread(target=self._enter_edu_mode_async, daemon=True, name="user-control-edu-enter").start()
         return f"ws://{bind}:{port}"
+
+    def _enter_edu_mode_async(self) -> None:
+        time.sleep(EDU_ENTER_INITIAL_DELAY_S)
+        for attempt in range(1, EDU_ENTER_RETRY_COUNT + 1):
+            if not self.is_connected():
+                self.log("EDU 模式进入取消: WebSocket 已断开")
+                return
+            try:
+                self.dog.enter_edu_mode(transport="ws")
+                self.log("EDU 模式已进入")
+                return
+            except Exception as exc:
+                self.log(f"EDU 模式进入失败({attempt}/{EDU_ENTER_RETRY_COUNT}): {exc}")
+                if attempt < EDU_ENTER_RETRY_COUNT:
+                    time.sleep(EDU_ENTER_RETRY_DELAY_S)
+        self.log("EDU 模式进入失败: 已达到最大重试次数")
 
     def disconnect(self) -> None:
         with self._lock:
             if self.host is not None:
                 self._disable_sensor_streams_unlocked()
+                self.dog.exit_edu_mode()
                 self.host.stop()
                 self.host = None
 
@@ -90,6 +111,7 @@ class RobotController:
             try:
                 if self.host is not None:
                     self._disable_sensor_streams_unlocked()
+                    self.dog.exit_edu_mode()
                     self.host.stop()
                     self.host = None
             except Exception:

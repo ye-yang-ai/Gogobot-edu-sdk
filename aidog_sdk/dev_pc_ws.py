@@ -52,6 +52,28 @@ async def run_dev_pc_websocket_server(
             await stop.wait()
 
 
+class _AckRoutingWebSocket:
+    def __init__(self, ws: Any, record_ack: Callable[[str], bool]) -> None:
+        self._ws = ws
+        self._record_ack = record_ack
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._ws, name)
+
+    async def send(self, message: Any) -> None:
+        await self._ws.send(message)
+
+    def __aiter__(self) -> "_AckRoutingWebSocket":
+        return self
+
+    async def __anext__(self) -> Any:
+        while True:
+            message = await self._ws.__anext__()
+            if isinstance(message, str) and self._record_ack(message):
+                continue
+            return message
+
+
 class DevPcWebSocketHost:
     """
     Run a WebSocket server on your PC for the robot to connect to (client mode on device).
@@ -102,19 +124,34 @@ class DevPcWebSocketHost:
         self._active_lock = threading.Lock()
         self._ack_cv = threading.Condition()
         self._acks: Dict[str, Dict[str, object]] = {}
+        if self._dog is not None:
+            self._dog.attach_ws_control(self)
 
-    def _handle_text(self, message: str) -> None:
+    def _record_ack_text(self, message: str) -> bool:
         try:
             obj = json.loads(message)
-            if isinstance(obj, dict) and obj.get("type") == "ack":
-                ack_id = obj.get("id")
-                if ack_id is not None:
-                    with self._ack_cv:
-                        self._acks[str(ack_id)] = obj
-                        self._ack_cv.notify_all()
-                return
         except Exception:
-            pass
+            return False
+        if not isinstance(obj, dict) or obj.get("type") != "ack":
+            return False
+        ack_id = obj.get("id")
+        if ack_id is None:
+            return True
+        with self._ack_cv:
+            self._acks[str(ack_id)] = obj
+            self._ack_cv.notify_all()
+        return True
+
+    def _notify_dog(self, method_name: str) -> None:
+        if self._dog is None:
+            return
+        method = getattr(self._dog, method_name, None)
+        if callable(method):
+            threading.Thread(target=method, daemon=True, name=f"aidog-ws-{method_name}").start()
+
+    def _handle_text(self, message: str) -> None:
+        if self._record_ack_text(message):
+            return
         if self._dog is not None:
             self._dog.feed_sensor_stream_json(message)
         if self._on_imu is None and self._on_tof is None:
@@ -138,15 +175,17 @@ class DevPcWebSocketHost:
     async def _dispatch_connection(self, ws: Any, *_path: Any) -> None:
         with self._active_lock:
             self._active_ws = ws
+        self._notify_dog("_on_ws_robot_connected")
         try:
             if self._connection_handler is not None:
-                await self._connection_handler(ws)
+                await self._connection_handler(_AckRoutingWebSocket(ws, self._record_ack_text))
             else:
                 await self._client_loop(ws)
         except Exception as exc:
             if not _is_websocket_connection_closed(exc):
                 raise
         finally:
+            self._notify_dog("_on_ws_robot_disconnected")
             with self._active_lock:
                 if self._active_ws is ws:
                     self._active_ws = None
@@ -217,6 +256,23 @@ class DevPcWebSocketHost:
         timeout_s: float = 3.0,
     ) -> None:
         payload: Dict[str, object] = {"cmd": "config_json", "config": dict(config)}
+        if command_id is not None:
+            payload["id"] = str(command_id)
+        self.send_text(json.dumps(payload, separators=(",", ":")), timeout_s=timeout_s)
+
+    def send_edu_session(
+        self,
+        action: str,
+        *,
+        lease_ms: int = 8000,
+        command_id: Optional[str] = None,
+        timeout_s: float = 3.0,
+    ) -> None:
+        payload: Dict[str, object] = {
+            "cmd": "edu_session",
+            "action": str(action),
+            "lease_ms": max(1000, int(lease_ms)),
+        }
         if command_id is not None:
             payload["id"] = str(command_id)
         self.send_text(json.dumps(payload, separators=(",", ":")), timeout_s=timeout_s)

@@ -109,7 +109,7 @@ def main() -> int:
     host = DevPcWebSocketHost(
         host=args.bind,
         port=args.port,
-        dog=None if args.ws_config else dog,
+        dog=dog,
         on_imu=None if args.ws_config else imu_printer,
         connection_handler=build_ws_connection_handler(dog, hz, imu_printer) if args.ws_config else None,
     )

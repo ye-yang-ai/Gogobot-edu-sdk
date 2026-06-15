@@ -25,7 +25,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from aidog_sdk import DevPcWebSocketHost
+from aidog_sdk import AiDog, DevPcWebSocketHost
 
 
 def main() -> int:
@@ -35,7 +35,8 @@ def main() -> int:
     parser.add_argument("--timeout", type=float, default=60.0, help="wait timeout in seconds")
     args = parser.parse_args()
 
-    host = DevPcWebSocketHost(host=args.bind, port=args.port)
+    dog = AiDog()
+    host = DevPcWebSocketHost(host=args.bind, port=args.port, dog=dog)
     try:
         host.start()
         print(f"[host] listening ws://{args.bind}:{args.port}; waiting for robot")
@@ -50,6 +51,7 @@ def main() -> int:
         return 0
     finally:
         host.stop()
+        dog.shutdown()
 
 
 if __name__ == "__main__":
